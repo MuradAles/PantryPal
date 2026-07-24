@@ -84,8 +84,35 @@ def _for_model(state: ChatState) -> list:
 
 async def _agent(state: ChatState) -> dict:
     """Call the model with tools bound and let it decide what to do next."""
-    model = llm.get_model(state.get("tier") or "fast").bind_tools(ALL_TOOLS)
+    # bound_model rather than get_model().bind_tools(): the tools have to be bound
+    # to the backup model too, or a fallback would answer without any of them.
+    model = llm.bound_model(state.get("tier") or "fast", ALL_TOOLS)
     return {"messages": [await model.ainvoke(_for_model(state))]}
+
+
+def _without_unanswered_calls(messages: list) -> list:
+    """Drop trailing tool-call requests that no tool result ever answered.
+
+    This node is reached precisely because the cap skipped the tools node, so the
+    last message is an AIMessage asking for a tool that will never run. Sending
+    that on is malformed: providers reject a function call with no matching
+    function response, and this call binds no tools, so it also declares a
+    function it never offered. Either way the one node whose job is to guarantee
+    the user gets prose would be the node that raises.
+
+    Only the unanswered tail is removed. Earlier tool calls in the same turn have
+    their results alongside them and are what the final answer is built from.
+    """
+    kept = list(messages)
+    # A tool call at the very end of the list has nothing after it that could
+    # have answered it, so position decides this and no id matching is needed.
+    # That matters: ids are only unique per provider response, and pairing on
+    # them would quietly mismatch a repeated id across two turns.
+    while kept and (getattr(kept[-1], "tool_calls", None) or []):
+        # Dropped whole rather than stripped of its tool_calls: an AIMessage with
+        # no text and no calls left is an empty turn the provider also rejects.
+        kept.pop()
+    return kept
 
 
 async def _finalize(state: ChatState) -> dict:
@@ -93,7 +120,9 @@ async def _finalize(state: ChatState) -> dict:
     # Without this the run can end on a message that only contains tool calls,
     # leaving the user with silence. Re-asking without tools bound guarantees
     # prose, using whatever the model gathered before it ran out of turns.
-    model = llm.get_model(state.get("tier") or "fast")
+    # Deliberately no tools, but still backed: this is the last chance to say
+    # anything at all, so it is the worst place to lose to an exhausted quota.
+    model = llm.resilient_model(state.get("tier") or "fast")
     nudge = SystemMessage(
         "You have gathered enough. Answer now in plain text without calling any more tools."
     )

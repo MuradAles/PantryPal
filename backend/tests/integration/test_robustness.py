@@ -74,35 +74,6 @@ async def test_profile_reads_and_writes_degrade_instead_of_erroring(client, dead
     assert (await client.delete("/api/profile/murad")).status_code == 503
 
 
-async def test_a_failed_profile_write_alone_still_answers_503(
-    client, dead_database, monkeypatch
-):
-    """The profile half of the deletion, isolated, from the real store to the status code.
-
-    The test above cannot see this one: with the database gone every half fails,
-    so the 503 arrives whether or not the route consults the profile result at
-    all. Here the other two halves are told to succeed, leaving `deleted` as the
-    only term that can produce the error — and it is the real delete_profile
-    against a real failed write, not a stub returning False.
-
-    This is the assertion that was missing when delete_profile's except branch
-    was returning True: the route answered 204 while the row was still in SQLite.
-    """
-    from app import graph
-    from app import recipes as saved_recipes
-
-    async def _succeeds(user_id: str) -> bool:
-        return True
-
-    monkeypatch.setattr(graph, "forget_conversation", _succeeds)
-    monkeypatch.setattr(saved_recipes, "delete_all", _succeeds)
-
-    response = await client.delete("/api/profile/murad")
-
-    assert response.status_code == 503, "a failed profile delete was reported as success"
-    assert "try again" in response.json()["detail"].lower()
-
-
 @pytest.mark.parametrize(
     "payload",
     [

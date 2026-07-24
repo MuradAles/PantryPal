@@ -3,18 +3,29 @@
 The only file in the app allowed to name a model provider. Everything else asks
 for a tier — "classifier", "fast" or "smart" — and gets back a LangChain
 `BaseChatModel`, so swapping providers is a change here and nowhere else.
+
+Callers that run a model in the request path should ask for it through
+`bound_model`, `structured_model` or `resilient_model` rather than `get_model`,
+because those add the backup model underneath. Free-tier daily caps are per
+model id, not per project, so one tier running dry would otherwise take the
+whole product down for the rest of the day.
 """
 
+import logging
+from collections.abc import Callable, Sequence
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
+from langchain_core.runnables import Runnable
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import get_settings
 
-Tier = Literal["classifier", "fast", "smart"]
+log = logging.getLogger(__name__)
+
+Tier = Literal["classifier", "fast", "smart", "backup"]
 
 # Warm enough to have opinions, which is the whole personality requirement, but
 # not so warm it starts inventing ingredients.
@@ -27,18 +38,25 @@ REQUEST_TIMEOUT_SECONDS = 60
 MAX_RETRIES = 2
 
 
-@lru_cache
-def get_model(tier: Tier = "fast") -> BaseChatModel:
-    """Return the chat model for a difficulty tier, cached per tier."""
+def model_id(tier: Tier = "fast") -> str:
+    """Return the configured model id for a tier."""
     settings = get_settings()
     by_tier = {
         "classifier": settings.model_classifier,
         "fast": settings.model_fast,
         "smart": settings.model_smart,
+        "backup": settings.model_backup,
     }
     # An unknown tier falls back to fast rather than raising; a routing bug
     # should degrade to a working answer, not a 503.
-    model = by_tier.get(tier, settings.model_fast)
+    return by_tier.get(tier, settings.model_fast)
+
+
+@lru_cache
+def get_model(tier: Tier = "fast") -> BaseChatModel:
+    """Return the chat model for a difficulty tier, cached per tier."""
+    settings = get_settings()
+    model = model_id(tier)
 
     options: dict = {}
     if tier != "smart":
@@ -61,6 +79,45 @@ def get_model(tier: Tier = "fast") -> BaseChatModel:
         max_retries=MAX_RETRIES,
         **options,
     )
+
+
+def _worth_falling_back(tier: Tier) -> bool:
+    """Whether the backup model is a different allowance from this tier's."""
+    # Daily caps are per model id. A backup pointing at the same id shares the
+    # same exhausted quota, so falling back to it would retry into the identical
+    # 429 and cost the user a second round trip to learn nothing. Compared on the
+    # configured id rather than on the tier name, because MODEL_BACKUP is
+    # env-settable and an operator can quietly make them equal.
+    return tier != "backup" and model_id("backup") != model_id(tier)
+
+
+def _compose(tier: Tier, adapt: Callable[[BaseChatModel], Runnable]) -> Runnable:
+    """Adapt a tier's model, with the backup model adapted the same way beneath it.
+
+    The adaptation has to happen before the fallback rather than after. bind_tools
+    and with_structured_output live on BaseChatModel, and RunnableWithFallbacks
+    has neither — so `model.with_fallbacks(...).bind_tools(...)` raises, and the
+    tools would be silently absent even if it did not.
+    """
+    primary = adapt(get_model(tier))
+    if not _worth_falling_back(tier):
+        return primary
+    return primary.with_fallbacks([adapt(get_model("backup"))])
+
+
+def bound_model(tier: Tier, tools: Sequence[Any]) -> Runnable:
+    """Return a tier's model with tools bound, backed by the backup model."""
+    return _compose(tier, lambda model: model.bind_tools(tools))
+
+
+def structured_model(tier: Tier, schema: Any) -> Runnable:
+    """Return a tier's model constrained to a schema, backed by the backup model."""
+    return _compose(tier, lambda model: model.with_structured_output(schema))
+
+
+def resilient_model(tier: Tier) -> Runnable:
+    """Return a tier's model unadapted, backed by the backup model."""
+    return _compose(tier, lambda model: model)
 
 
 def text_of(message: BaseMessage) -> str:

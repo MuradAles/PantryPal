@@ -48,7 +48,7 @@ This cost us an hour during the build, and the failure is confusing: the contain
 
 ## See it work in a minute
 
-The interesting part is the memory, and it is invisible until you give it something to remember. Type these two messages in order and watch the right-hand panel.
+The interesting part is the memory, and it is invisible until you give it something to remember. Type these two messages in order and watch the Memory Bank panel on the right. On a narrow window the panel moves behind the Profile tab in the bottom bar.
 
 ```
 1.  I only have a hot plate and one pan
@@ -61,6 +61,8 @@ The interesting part is the memory, and it is invisible until you give it someth
 ```
 
 Then restart the containers and ask again. It still knows.
+
+If the reply puts a dish on screen as a card rather than as prose, that is the model choosing to call `present_recipe`. Save it with the bookmark button and it joins the list in the left rail, which is also what the Recipes tab shows. Nothing in the code decides when a card appears. The model does, the same way it decides when to search.
 
 Two more worth trying, both of which cost zero API calls because they never reach a model:
 
@@ -97,8 +99,21 @@ event: token
 data: {"text": "Carbonara, then. Boil the pasta in the pan"}
 
 event: done
-data: {"allergen_notice": true, "sources": []}
+data: {"allergen_notice": true, "sources": [], "recipe": null}
 ```
+
+`recipe` is null on most turns, because conversation is not a recipe. When the model decides to put a dish on screen it calls `present_recipe`, and the card rides on the same event:
+
+```
+event: done
+data: {"allergen_notice": true, "sources": [],
+       "recipe": {"title": "One-pan carbonara",
+                  "ingredients": ["spaghetti", "guanciale", "eggs", "pecorino"],
+                  "steps": ["Boil the pasta.", "Render the guanciale.", "Off the heat, toss."],
+                  "time_mins": 20, "difficulty": "easy", "serves": 2}}
+```
+
+Only `title` and `steps` are guaranteed. `time_mins`, `difficulty` and `serves` come back null when the model did not know them, and the card renders with the slot missing rather than with a number nobody vouched for. That is the same shape `POST /api/recipes` accepts, so a saved card is identical to the one that was shown.
 
 ```bash
 # what it remembers about you
@@ -108,8 +123,21 @@ curl localhost:8000/api/profile/you
 curl -X PATCH localhost:8000/api/profile/you \
   -H 'Content-Type: application/json' -d '{"likes":["thai"]}'
 
-# erase everything, profile and conversation history together
+# erase everything: profile, conversation history and saved recipes
 curl -X DELETE localhost:8000/api/profile/you
+```
+
+```bash
+# keep a recipe
+curl -X POST localhost:8000/api/recipes/you \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"One-pan carbonara","steps":["Boil the pasta."]}'
+
+# what you have kept, newest first
+curl localhost:8000/api/recipes/you
+
+# drop one
+curl -X DELETE localhost:8000/api/recipes/you/1
 ```
 
 | Method | Path | Does |
@@ -117,8 +145,13 @@ curl -X DELETE localhost:8000/api/profile/you
 | `POST` | `/api/chat` | Send a message, stream the reply |
 | `GET` | `/api/profile/{user_id}` | Everything stored about a user |
 | `PATCH` | `/api/profile/{user_id}` | Overwrite named fields only |
-| `DELETE` | `/api/profile/{user_id}` | Erase the profile and the conversation thread |
+| `DELETE` | `/api/profile/{user_id}` | Erase the profile, the conversation thread and the saved recipes |
+| `POST` | `/api/recipes/{user_id}` | Save a recipe, returns it with its id |
+| `GET` | `/api/recipes/{user_id}` | Saved recipes, newest first |
+| `DELETE` | `/api/recipes/{user_id}/{recipe_id}` | Remove one, if it belongs to that user |
 | `GET` | `/health` | Liveness, plus whether the database is reachable |
+
+There is no authentication, so `user_id` is whatever the client says it is. A delete puts the user id in the SQL `WHERE` clause rather than checking ownership afterwards, so one user cannot remove another's recipe by guessing its id, but anyone who knows a user id can read that account. This is a demo posture, and `TRADEOFFS.md` says so at more length.
 
 ---
 
@@ -141,7 +174,12 @@ The ones that matter most are `tests/unit/test_profile_guard.py`, which asserts 
 POST /api/chat
   |
   v
-classify           keyword pass first, then one small model call
+keyword pass       regex, no API call. Catches the obvious blocks.
+  |
+  +-- matched --> canned decline, streamed, zero API calls spent
+  |
+  v
+classify           one small model call on whatever is left
   |                returns { topic, difficulty }
   |
   +-- topic blocked --> canned decline, streamed, model never invoked
@@ -152,14 +190,15 @@ pick a model       SIMPLE -> fast tier, HARD -> smart tier
   v
 LangGraph agent    tools bound, loops up to 5 times
   |  ^
-  |  |  search_web / get_user_profile / remember_about_user
+  |  |  search_web / get_user_profile
+  |  |  remember_about_user / present_recipe
   +--+
   |
   v
-attach allergen notice, stream tokens
+attach allergen notice and any recipe card, stream tokens
 ```
 
-The model chooses its own tool calls. Nothing in the code inspects the user's message and calls a tool on its behalf.
+The model chooses its own tool calls. Nothing in the code inspects the user's message and calls a tool on its behalf. That includes the recipe card: there is no branch anywhere that reads the message, decides it sounds like a recipe request, and produces one.
 
 **Three things are enforced in code rather than asked for in a prompt**, because counsel called them non-negotiable and a prompt is a request:
 
@@ -173,17 +212,19 @@ The model chooses its own tool calls. Nothing in the code inspects the user's me
 
 ```
 backend/app/
-  main.py       FastAPI, SSE streaming, the five routes
+  main.py       FastAPI, SSE streaming, the eight routes
   graph.py      the LangGraph agent and the classify-then-route gate
   policy.py     keyword layer, classifier, medical denylist, allergen rule
   profile.py    the three memory tiers and the write guard
-  tools.py      the three tools the model may call
-  llm.py        the only file that names a model provider
+  recipes.py    saved-recipe storage, ownership in the WHERE clause
+  tools.py      the four tools the model may call
+  schemas.py    the request and response shapes, including the recipe
+  llm.py        the only file that names a model provider, and the backup fallback
   prompts.py    the persona, as a real artifact with worked examples
   db.py         the only file that touches storage
   config.py     environment settings
 
-frontend/src/   React, deliberately unstyled pending a design
+frontend/src/   React, Tailwind, the chat and the recipe cards
 
 docs/           PRD, build checklist, architecture diagrams, the original brief
 brief/          the four stakeholder artifacts this was scoped from
