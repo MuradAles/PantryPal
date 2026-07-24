@@ -155,7 +155,7 @@ async def delete_profile(user_id: str) -> bool:
             await conn.commit()
     except Exception:
         log.exception("could not delete profile for %s", user_id)
-        return True  # MUTANT
+        return False
     return True
 
 

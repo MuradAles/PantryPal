@@ -232,9 +232,31 @@ def collect_sources(messages: list) -> list[dict]:
     # a page cited three turns ago is not a source for the answer on screen now.
     seen: dict[str, dict] = {}
     for message in _this_turn(messages):
-        if isinstance(message, ToolMessage):
-            for source in getattr(message, "artifact", None) or []:
-                url = source.get("url")
-                if url:
-                    seen[url] = source
+        if not isinstance(message, ToolMessage):
+            continue
+        artifact = getattr(message, "artifact", None)
+        # Two tools now put artifacts on the wire and they carry different
+        # shapes: search returns a list of sources, present_recipe a single
+        # recipe dict. Without this check a recipe would be iterated as its keys.
+        if not isinstance(artifact, list):
+            continue
+        for source in artifact:
+            if isinstance(source, dict) and (url := source.get("url")):
+                seen[url] = source
     return list(seen.values())
+
+
+def collect_recipe(messages: list) -> dict | None:
+    """Pull the recipe the model presented this turn, or None if it presented none."""
+    # Scoped to this turn like collect_sources, so yesterday's carbonara does not
+    # reappear as a card above today's answer.
+    #
+    # Last one wins. A model that talked itself out of one dish and into another
+    # in the same turn should leave the card on the one it actually recommended.
+    found: dict | None = None
+    for message in _this_turn(messages):
+        if isinstance(message, ToolMessage):
+            artifact = getattr(message, "artifact", None)
+            if isinstance(artifact, dict) and artifact.get("title"):
+                found = artifact
+    return found

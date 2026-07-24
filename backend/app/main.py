@@ -12,8 +12,16 @@ from sse_starlette.sse import EventSourceResponse
 
 from app import db, graph, llm, policy
 from app import profile as user_profile
+from app import recipes as saved_recipes
 from app.prompts import decline_text
-from app.schemas import MAX_MESSAGE_CHARS, ChatDone, ChatRequest, ProfileUpdate
+from app.schemas import (
+    MAX_MESSAGE_CHARS,
+    ChatDone,
+    ChatRequest,
+    ProfileUpdate,
+    Recipe,
+    SavedRecipe,
+)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -61,8 +69,8 @@ def _event(name: str, payload: dict) -> dict:
     return {"event": name, "data": json.dumps(payload)}
 
 
-async def _reply(state: dict, user_id: str, collected: list[dict]) -> AsyncIterator[str]:
-    """Stream reply text from the agent graph, collecting any sources it used."""
+async def _reply(state: dict, user_id: str, collected: dict) -> AsyncIterator[str]:
+    """Stream reply text from the agent graph, collecting what the done event needs."""
     # Referenced through the module rather than imported by name so a test can
     # swap the graph without patching import internals.
     # user_id travels in config, not in state, so the model can never see or set
@@ -84,10 +92,12 @@ async def _reply(state: dict, user_id: str, collected: list[dict]) -> AsyncItera
                 yield text
         elif mode == "values":
             # Overwritten each pass, so the last one holds the full history.
-            collected[:] = graph.collect_sources(payload.get("messages", []))
+            messages = payload.get("messages", [])
+            collected["sources"] = graph.collect_sources(messages)
+            collected["recipe"] = graph.collect_recipe(messages)
 
 
-async def _events(first: str, rest: AsyncIterator[str], sources: list[dict]) -> AsyncIterator[dict]:
+async def _events(first: str, rest: AsyncIterator[str], collected: dict) -> AsyncIterator[dict]:
     """Emit token events, then exactly one final event carrying the contract."""
     said: list[str] = [first] if first else []
     try:
@@ -102,11 +112,23 @@ async def _events(first: str, rest: AsyncIterator[str], sources: list[dict]) -> 
         log.exception("model call failed mid-stream")
         yield _event("error", {"detail": "The assistant stopped early. Try again."})
 
+    recipe = collected.get("recipe")
     # Computed from the finished reply, never written by the model. Counsel's
     # concern was inconsistency, and deriving it server-side is what makes it
     # consistent by construction.
-    notice = policy.needs_allergen_notice("".join(said))
-    yield _event("done", ChatDone(allergen_notice=notice, sources=sources).model_dump())
+    #
+    # A card counts as naming a recipe even when the prose around it somehow did
+    # not, so the card alone is enough to trigger the notice. R18 says every
+    # response naming a recipe or an ingredient, and a card is nothing else.
+    notice = policy.needs_allergen_notice("".join(said)) or recipe is not None
+    yield _event(
+        "done",
+        ChatDone(
+            allergen_notice=notice,
+            sources=collected.get("sources") or [],
+            recipe=recipe,
+        ).model_dump(),
+    )
 
 
 async def _canned(topic: str) -> AsyncIterator[dict]:
@@ -133,12 +155,12 @@ async def chat(request: ChatRequest) -> EventSourceResponse:
         return EventSourceResponse(_canned(topic))
 
     # Filled by the graph as it runs; read once the stream is exhausted, which
-    # is why the same list object is handed to both halves.
-    sources: list[dict] = []
+    # is why the same object is handed to both halves.
+    collected: dict = {"sources": [], "recipe": None}
 
     # Pull the first chunk before returning, so an unreachable model is a clean
     # 503 instead of an empty 200 the client has to interpret.
-    stream = _reply(state, request.user_id, sources)
+    stream = _reply(state, request.user_id, collected)
     try:
         first = await anext(stream)
     except StopAsyncIteration:
@@ -147,7 +169,7 @@ async def chat(request: ChatRequest) -> EventSourceResponse:
         log.exception("model call failed before streaming started")
         raise HTTPException(status_code=503, detail=LLM_UNAVAILABLE) from None
 
-    return EventSourceResponse(_events(first, stream, sources))
+    return EventSourceResponse(_events(first, stream, collected))
 
 
 @app.get("/api/profile/{user_id}")
@@ -175,9 +197,40 @@ async def erase_profile(user_id: str) -> None:
     # both actually succeeded. Reporting a deletion that did not happen is the
     # one failure mode counsel would care about.
     forgotten = await graph.forget_conversation(user_id)
+    unsaved = await saved_recipes.delete_all(user_id)
     deleted = await user_profile.delete_profile(user_id)
-    if not (forgotten and deleted):
+    if not (forgotten and unsaved and deleted):
         raise HTTPException(
             status_code=503,
             detail="Could not delete everything right now. Some of it may still be stored. Try again.",
         )
+
+
+@app.post("/api/recipes/{user_id}", status_code=201)
+async def save_recipe(user_id: str, recipe: Recipe) -> SavedRecipe:
+    """Keep one recipe for a user, returning it with the id it was stored under."""
+    # Re-validated through Recipe on the way in rather than trusted from the
+    # client, so a card cannot be edited into a different shape than the one the
+    # tool produced before it reaches storage.
+    stored = await saved_recipes.save_recipe(user_id, recipe.model_dump())
+    if stored is None:
+        raise HTTPException(status_code=503, detail="Could not save that recipe. Try again.")
+    return SavedRecipe(**stored)
+
+
+@app.get("/api/recipes/{user_id}")
+async def list_recipes(user_id: str) -> list[SavedRecipe]:
+    """Return a user's saved recipes, newest first."""
+    return [SavedRecipe(**row) for row in await saved_recipes.list_recipes(user_id)]
+
+
+@app.delete("/api/recipes/{user_id}/{recipe_id}", status_code=204)
+async def forget_recipe(user_id: str, recipe_id: int) -> None:
+    """Remove one saved recipe, if it belongs to this user."""
+    removed = await saved_recipes.delete_recipe(user_id, recipe_id)
+    if removed is None:
+        raise HTTPException(status_code=503, detail="Could not delete that recipe. Try again.")
+    if not removed:
+        # 404 rather than a silent 204: the only way to reach this is a stale
+        # list or someone else's id, and both are worth the client knowing about.
+        raise HTTPException(status_code=404, detail="No such saved recipe.")

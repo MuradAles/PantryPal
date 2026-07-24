@@ -34,6 +34,17 @@ CREATE TABLE IF NOT EXISTS profiles (
     avoid      TEXT NOT NULL DEFAULT '[]',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS saved_recipes (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id  TEXT NOT NULL,
+    recipe   TEXT NOT NULL,
+    saved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- The only query this table serves is "this user's, newest first", and the id
+-- is monotonic so it orders by time without a second column to sort on.
+CREATE INDEX IF NOT EXISTS saved_recipes_by_user ON saved_recipes (user_id, id DESC);
 """
 
 
@@ -99,6 +110,23 @@ def decode(raw: str | None) -> list[str]:
     except json.JSONDecodeError:
         log.warning("corrupt list column, treating as empty")
         return []
+
+
+def encode_recipe(recipe: dict) -> str:
+    """Serialize a recipe object for the saved_recipes table."""
+    return json.dumps(recipe)
+
+
+def decode_recipe(raw: str | None) -> dict | None:
+    """Deserialize a stored recipe, returning None on missing or corrupt data."""
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        log.warning("corrupt recipe row, skipping it")
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 async def healthy() -> bool:
