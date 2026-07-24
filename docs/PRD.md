@@ -1,6 +1,6 @@
 # PantryPal v1 — Build Spec
 
-Internal working document. Not a submission deliverable. Companion to `SCOPING.md`, which holds the reasoning behind these decisions.
+Internal working document, kept in `docs/` as a record of how this was built. Companion to `SCOPING.md`, which holds the reasoning behind these decisions.
 
 ---
 

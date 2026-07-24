@@ -1,6 +1,6 @@
 # PantryPal — Build Checklist
 
-Internal working document. Not a submission deliverable.
+Internal working document, kept in `docs/` as a record of how this was built.
 
 Build order is deliberate: the system runs at every commit. If time runs out, stop anywhere and document the rest in `TRADEOFFS.md`. Phases 7 and 8 are the safest cuts. **Phase 5 is not cuttable** — the legal blocks are non-negotiable.
 
@@ -205,7 +205,8 @@ Still to write — the high-stakes ones, landing with phases 4 and 5:
 - [ ] README includes the demo script from `PRD.md` §11 so memory is visible in under a minute
 - [ ] `TRADEOFFS.md` — built vs scoped, cuts and why, next steps, known issues
 - [ ] `SCOPING.md` reread against what actually shipped; correct anything that drifted
-- [ ] Remove scaffolding: debug prints, dead code, `PRD.md`, `TASKS.md`
+- [x] Working docs moved to `docs/` rather than deleted — root keeps only the four deliverables
+- [ ] Remove scaffolding: debug prints, dead code
 - [ ] Fresh-clone test: follow only the README, confirm no undocumented step
 
 **Done when:** you can delete the repo, re-clone, follow only `README.md`, and reach a working chat.
