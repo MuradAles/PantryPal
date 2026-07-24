@@ -59,11 +59,14 @@ def _event(name: str, payload: dict) -> dict:
 async def _reply(state: dict, user_id: str, collected: list[dict]) -> AsyncIterator[str]:
     """Stream reply text from the agent graph, collecting any sources it used."""
     # Referenced through the module rather than imported by name so a test can
-    # swap graph.GRAPH without patching import internals.
+    # swap the graph without patching import internals.
     # user_id travels in config, not in state, so the model can never see or set
-    # it and therefore cannot reach another user's profile.
-    config = {"configurable": {"user_id": user_id}}
-    async for mode, payload in graph.GRAPH.astream(
+    # it and therefore cannot reach another user's profile. thread_id is the same
+    # value: one continuing conversation per user, which is what "remembers you
+    # across sessions" means once the checkpointer is in play.
+    config = {"configurable": {"user_id": user_id, "thread_id": user_id}}
+    compiled = await graph.get_graph()
+    async for mode, payload in compiled.astream(
         state, config=config, stream_mode=["messages", "values"]
     ):
         if mode == "messages":

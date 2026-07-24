@@ -6,7 +6,7 @@ import re
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app import db
+from app import db, graph
 from app.main import app
 
 
@@ -21,11 +21,16 @@ async def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "integration.db"))
     config.get_settings.cache_clear()
     await db.init_db()
+    # The checkpointer is cached across requests and binds to both a database
+    # file and the event loop it was built on, so a leftover one from the
+    # previous test would still be pointing at that test's database.
+    await graph.reset_graph()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client
 
+    await graph.reset_graph()
     config.get_settings.cache_clear()
 
 
