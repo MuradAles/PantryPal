@@ -17,8 +17,8 @@ Commit at the end of every phase. The README asks for visible progress.
 | 4 — Memory | done, 126 tests green, live check pending |
 | 5 — Legal rules | done, 126 tests green, live check pending |
 | 6 — Robustness | done, 152 tests green |
-| 7 — Frontend | not started |
-| 8 — Profile panel | not started |
+| 7 — Frontend | done, verified |
+| 8 — Profile panel | done, verified |
 | 9 — Tests | 152 green, medical write guard and concurrency both mutation-checked |
 | 10 — Documentation | not started |
 
@@ -143,28 +143,30 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 7 — Frontend
 
-- [ ] `frontend/` — Vite + React, Dockerfile, added to compose
-- [ ] Chat: message list, markdown rendering, streaming, input locked while streaming
-- [ ] Empty state that explains what the assistant is for (Priya's fourth requirement)
-- [ ] Allergen notice rendered as chrome attached to the message, never from model text
-- [ ] Sources shown when search was used
-- [ ] `user_id` in localStorage
-- [ ] CORS configured on the backend
+- [x] `frontend/` — Vite + React, Dockerfile, added to compose
+- [x] Chat: message list, markdown rendering, streaming, input locked while streaming
+- [x] Empty state that explains what the assistant is for (Priya's fourth requirement)
+- [x] Allergen notice rendered as chrome attached to the message, never from model text
+- [x] Sources shown when search was used
+- [x] `user_id` in localStorage
+- [x] CORS configured on the backend
 
 **Done when:** you can hold a full conversation in the browser and watch responses stream.
 
-**Note:** structure only. Visual design comes separately.
+**Note:** structure only, deliberately unstyled pending the user's design.
+
+**Gap:** a real recipe answer carrying `allergen_notice: true` has not been seen end to end — the daily quota ran out mid-verification. Everything else was checked live.
 
 ---
 
 ## Phase 8 — Profile panel
 
-- [ ] Panel showing Cookware, Likes, Avoids as tag lists
-- [ ] Empty state reads as "nothing learned yet", not broken
-- [ ] Individual tag removal
-- [ ] Delete-everything with confirmation (Diane's requirement — must be reachable, not buried)
-- [ ] Updates live when the assistant learns something
-- [ ] Panel collapses on narrow screens without hiding delete
+- [x] Panel showing Cookware, Likes, Avoids as tag lists
+- [x] Empty state reads as "nothing learned yet", not broken
+- [x] Individual tag removal
+- [x] Delete-everything with confirmation (Diane's requirement — must be reachable, not buried)
+- [x] Updates live when the assistant learns something
+- [x] Panel collapses on narrow screens without hiding delete
 
 **Done when:** a new tag visibly appears mid-conversation after you mention owning something.
 

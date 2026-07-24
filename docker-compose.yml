@@ -21,5 +21,25 @@ services:
       retries: 5
       start_period: 10s
 
+  frontend:
+    build: ./frontend
+    environment:
+      # The dev server proxies /api to this, so the browser only ever talks to
+      # its own origin and no API URL is baked into the bundle.
+      VITE_API_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      # Same trick as the backend: source is mounted so edits need no rebuild.
+      # The whole directory rather than individual files, because a single-file
+      # bind mount keeps the old inode when an editor rewrites the file and the
+      # container then reads a stale copy. The anonymous volume keeps the
+      # node_modules installed in the image from being hidden by the host mount.
+      - ./frontend:/srv
+      - /srv/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   pantrypal-data:
