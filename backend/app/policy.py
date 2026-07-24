@@ -56,7 +56,10 @@ MEDICAL_TERMS: frozenset[str] = frozenset(
         # bare ingredient names stay storable, which is what the avoid list is for.
         "intolerant", "intolerance", "malabsorption",
         "acid reflux", "reflux", "gerd", "heartburn", "fodmap",
-        "hypertension", "blood pressure", "cholesterol", "heart disease", "statin",
+        "hypertension", "blood pressure", "cholesterol", "statin",
+        # Not a bare "heart": "artichoke hearts" and "heart of palm" are food.
+        # These are the shapes people actually use to state the condition.
+        "heart disease", "heart condition", "heart problems", "my heart",
         "triglycerides", "blood thinner", "warfarin", "metformin", "ozempic", "insulin",
         "kidney disease", "renal", "dialysis", "liver disease", "fatty liver",
         "cancer", "chemo", "chemotherapy", "radiation", "hiv",

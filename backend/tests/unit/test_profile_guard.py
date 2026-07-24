@@ -158,6 +158,7 @@ def test_the_denylist_does_not_catch_ordinary_food_words():
         "endometriosis", "gallbladder removed", "no gallbladder", "gastric bypass",
         "on warfarin", "taking metformin", "on ozempic", "histamine intolerance",
         "low fodmap", "anaphylaxis", "autoimmune", "hiv", "asthma",
+        "low sodium for my heart",
     ],
 )
 async def test_the_conditions_the_first_denylist_missed_do_not_persist(tmp_db, condition):
