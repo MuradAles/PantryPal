@@ -202,7 +202,7 @@ Still to write, the high-stakes ones, landing with phases 4 and 5:
 - [x] Unit: classifier routes each topic, including adversarial phrasings. `test_policy.py`
 - [x] Unit: `needs_allergen_notice`. Rule widened to always-on for substantive replies, see TRADEOFFS
 - [x] Integration: memory round trip, and conversation history across turns
-- [ ] Integration: memory surviving a full container restart. Not run
+- [x] Integration: memory surviving a full container restart. Verified live: told it "I only have a hot plate and one pan", ran `docker compose down` so the containers were destroyed, brought it back up, and asked for dinner. The profile survived and the reply reasoned from it, recommending aglio e olio specifically because it works in a single pan.
 - [x] Integration: blocked topics never reach the agent. Asserts the model was never called
 - [x] Integration: `DELETE /api/profile` empties the profile, the conversation thread and the saved recipes
 - [x] Unit: the backup model takes over when the primary fails, with tools still bound to it

@@ -117,7 +117,11 @@ data: {"allergen_notice": true, "sources": [],
                   "time_mins": 20, "difficulty": "easy", "serves": 2}}
 ```
 
-Only `title` and `steps` are guaranteed. `time_mins`, `difficulty` and `serves` come back null when the model did not know them, and the card renders with the slot missing rather than with a number nobody vouched for. That is the same shape `POST /api/recipes` accepts, so a saved card is identical to the one that was shown.
+The `recipe` key is always there, set to null rather than omitted. `steps` and `ingredients` are always arrays and never null, so the frontend can map over them without guarding. `time_mins`, `difficulty` and `serves` are independently nullable and come back null when the model did not know them, and the card renders with that slot missing. An invented cooking time sends somebody shopping on bad information, so the model is told to omit what it does not know rather than fill it in. `difficulty` is one of `easy`, `medium` or `hard`, lowercase.
+
+That is the same shape `POST /api/recipes` accepts, so a saved card is identical to the one that was shown.
+
+`allergen_notice` is true whenever a card is present, even on the rare turn where the prose alone would not have triggered it. A card names a dish, and that is counsel's trigger.
 
 ```bash
 # what it remembers about you
