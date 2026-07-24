@@ -13,9 +13,9 @@ Commit at the end of every phase. The README asks for visible progress.
 - [x] `git init` at repo root
 - [x] `SCOPING.md` at repo root (README requires it there)
 - [x] `.gitignore` covers `.env`, `.claude/`, `__pycache__/`, `node_modules/`, `.venv/`
-- [ ] `.env.example` with `GEMINI_API_KEY`, `TAVILY_API_KEY`, `DATABASE_URL` — values blank
-- [ ] Confirm `.env` is ignored: `git check-ignore .env` returns the filename
-- [ ] First commit
+- [x] `.env.example` with `GEMINI_API_KEY`, `TAVILY_API_KEY`, `DATABASE_PATH` — values blank
+- [x] Confirm `.env` is ignored: `git check-ignore .env` returns the filename
+- [x] First commit
 
 **Done when:** `git log` shows one commit and `git status` shows no untracked secrets.
 
@@ -23,16 +23,16 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 1 — Skeleton that runs
 
-- [ ] `backend/Dockerfile` on `python:3.12-slim`
-- [ ] `backend/pyproject.toml` with the dependency list from `PRD.md` §2
-- [ ] `backend/app/config.py` — pydantic-settings; map `TRAVILY_API_KEY` from `.env` to the Tavily client
-- [ ] `backend/app/main.py` — FastAPI app with `GET /health`
-- [ ] `docker-compose.yml` — `backend`, `postgres` services; postgres healthcheck; backend `depends_on: condition: service_healthy`
-- [ ] `backend/app/db.py` — connection pool, `profiles` table created on startup
+- [x] `backend/Dockerfile` on `python:3.12-slim`
+- [x] `backend/pyproject.toml` with the dependency list from `PRD.md` §2
+- [x] `backend/app/config.py` — pydantic-settings; maps both `TAVILY_API_KEY` and `TRAVILY_API_KEY`
+- [x] `backend/app/main.py` — FastAPI app with `GET /health`
+- [x] `docker-compose.yml` — single `backend` service, named volume for the SQLite file, healthcheck on `/health`
+- [x] `backend/app/db.py` — SQLite access layer, `profiles` table created on startup
 
 **Done when:** `docker compose up` from clean, `curl localhost:8000/health` returns 200, and a container restart doesn't lose the table.
 
-**Watch for:** the backend starting before Postgres is ready. That's what the healthcheck is for.
+**Watch for:** the volume mount. Without it the database is recreated on every restart and the memory demo silently fails.
 
 ---
 
@@ -70,7 +70,7 @@ Commit at the end of every phase. The README asks for visible progress.
 - [ ] **Write guard**: `save_profile` strips medical terms before SQL, logs the rejection, does not raise
 - [ ] Tools `get_user_profile` and `remember_about_user` bound to the agent
 - [ ] Profile injected into the system prompt each turn
-- [ ] LangGraph Postgres checkpointer for conversation state, trimmed to the last 10 turns
+- [ ] LangGraph SQLite checkpointer for conversation state, trimmed to the last 10 turns
 - [ ] `GET`, `PATCH`, `DELETE /api/profile/{user_id}`
 
 **Done when:** say "I only have a hot plate and one pan", restart the containers, ask for dinner — it still knows, and doesn't suggest anything needing an oven.

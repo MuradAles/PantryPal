@@ -13,7 +13,7 @@ graph TB
     subgraph compose[Docker Compose]
         FE[React and Vite frontend]
         BE[FastAPI backend with LangGraph]
-        DB[(Postgres 16)]
+        DB[(SQLite file on a volume)]
     end
 
     subgraph ext[External APIs]
@@ -30,7 +30,7 @@ graph TB
     BE -->|langchain-tavily| TAV
 ```
 
-Three Compose services and two outbound dependencies. The frontend never talks to Postgres or to either external API directly — everything goes through FastAPI, which is what makes the write guard in diagram 4 unavoidable rather than advisory. Postgres carries two distinct workloads: the structured `profiles` table and the LangGraph conversation checkpointer. Both Gemini tiers are reached through LangChain, never a vendor SDK, which is a hard README requirement. `/health` exists for the Compose healthcheck. Note that if Postgres is unavailable the chat still answers with memory degraded and the degradation stated to the user, so the DB edges are not on the critical path for a reply.
+One Compose service and two outbound dependencies. The frontend never talks to the database or to either external API directly — everything goes through FastAPI, which is what makes the write guard in diagram 4 unavoidable rather than advisory. SQLite carries two distinct workloads: the structured `profiles` table and the LangGraph conversation checkpointer. Both Gemini tiers are reached through LangChain, never a vendor SDK, which is a hard README requirement. `/health` exists for the Compose healthcheck. Note that if the database is unavailable the chat still answers with memory degraded and the degradation stated to the user, so the DB edges are not on the critical path for a reply.
 
 ---
 
@@ -156,7 +156,7 @@ sequenceDiagram
     participant C as Classifier
     participant A as LangGraph Agent
     participant T as Tools
-    participant P as Postgres
+    participant P as SQLite
     participant G as Gemini
 
     U->>R: I only have a hot plate and one pan, what is for dinner
