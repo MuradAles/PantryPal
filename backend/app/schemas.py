@@ -39,3 +39,16 @@ class ChatDone(BaseModel):
 
     # Populated once the search tool lands in phase 3.
     sources: list[Source] = Field(default_factory=list)
+
+
+class ProfileUpdate(BaseModel):
+    """A user editing their own stored facts from the profile panel.
+
+    Every field is optional: an omitted field is left untouched rather than
+    cleared, so removing one tag cannot wipe the rest of the profile.
+    """
+
+    cookware: list[str] | None = None
+    likes: list[str] | None = None
+    dislikes: list[str] | None = None
+    avoid: list[str] | None = None

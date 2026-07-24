@@ -15,7 +15,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from app import llm
+from app import llm, policy
+from app import profile as user_profile
 from app.config import get_settings
 from app.prompts import system_prompt
 from app.tools import ALL_TOOLS
@@ -79,8 +80,31 @@ def build_graph():
 GRAPH = build_graph()
 
 
+async def prepare(message: str, user_id: str) -> tuple[ChatState, str]:
+    """Classify the turn and build its starting state. Returns the state and topic.
+
+    Blocked topics never reach the graph at all — the caller returns the canned
+    decline directly. That ordering is what makes the legal limits hold under a
+    prompt injection: there is no model in the path to be talked around.
+    """
+    verdict = await policy.classify(message)
+    if verdict.topic != "OK":
+        return {}, verdict.topic
+
+    stored = await user_profile.get_profile(user_id)
+    tier = "smart" if verdict.difficulty == "HARD" else "fast"
+    state: ChatState = {
+        "messages": [
+            SystemMessage(system_prompt(user_profile.profile_to_prompt(stored))),
+            HumanMessage(message),
+        ],
+        "tier": tier,
+    }
+    return state, "OK"
+
+
 def initial_state(message: str, tier: str = "fast", profile_text: str = "") -> ChatState:
-    """Build the starting state for one user turn."""
+    """Build the starting state for one user turn, without classifying."""
     return {
         "messages": [SystemMessage(system_prompt(profile_text)), HumanMessage(message)],
         "tier": tier,
