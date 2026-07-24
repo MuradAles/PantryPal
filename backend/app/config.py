@@ -1,5 +1,6 @@
 """Environment-backed settings, parsed once at import and cached."""
 
+import os
 from functools import lru_cache
 
 from pydantic import AliasChoices, Field
@@ -35,5 +36,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Return the process-wide Settings singleton."""
-    return Settings()
+    """Return the process-wide Settings singleton, normalizing provider env vars."""
+    settings = Settings()
+    # langchain-tavily and langchain-google-genai read these names from the
+    # environment directly, so republish them under the spellings they expect.
+    if settings.tavily_api_key:
+        os.environ["TAVILY_API_KEY"] = settings.tavily_api_key
+    if settings.gemini_api_key:
+        os.environ["GOOGLE_API_KEY"] = settings.gemini_api_key
+    return settings
