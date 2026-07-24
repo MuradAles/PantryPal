@@ -23,9 +23,14 @@ LLM_UNAVAILABLE = "The assistant is unavailable right now. Try again in a moment
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create the database file and schema on startup. SQLite needs no teardown."""
+    """Create the database file and schema on startup, and close the checkpointer."""
     await db.init_db()
     yield
+    # The profile store opens and closes a connection per call and needs no
+    # teardown. The checkpointer does not: it holds one open on a non-daemon
+    # thread, which keeps the process alive after uvicorn stops and turns a
+    # `compose stop` into a ten second wait for SIGKILL.
+    await graph.reset_graph()
 
 
 app = FastAPI(title="PantryPal", version="0.1.0", lifespan=lifespan)

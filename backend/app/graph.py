@@ -153,7 +153,7 @@ async def get_graph():
 
 
 async def reset_graph() -> None:
-    """Drop the cached graph and close its connection. For tests between databases."""
+    """Drop the cached graph and close its connection, on shutdown or between tests."""
     global _checkpointed, _saver
     if _saver is not None:
         try:
