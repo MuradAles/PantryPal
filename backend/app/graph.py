@@ -18,6 +18,7 @@ to. Two consequences run through this file:
   accumulating and means a fact learned this turn is in force on the next one.
 """
 
+import asyncio
 import logging
 from typing import Literal
 
@@ -126,7 +127,8 @@ async def _finalize(state: ChatState) -> dict:
     nudge = SystemMessage(
         "You have gathered enough. Answer now in plain text without calling any more tools."
     )
-    return {"messages": [await model.ainvoke([*_for_model(state), nudge])]}
+    history = _without_unanswered_calls(_for_model(state))
+    return {"messages": [await model.ainvoke([*history, nudge])]}
 
 
 def _route(state: ChatState) -> Literal["tools", "finalize", "__end__"]:
@@ -162,6 +164,11 @@ GRAPH = build_graph()
 
 _checkpointed = None
 _saver = None
+# Serializes the cold start. Without it, concurrent first requests each open
+# their own long-lived aiosqlite connection and all but the last are overwritten
+# unreferenced — never closed, and invisible to reset_graph, which is the one
+# thing standing between `compose stop` and a ten second wait for SIGKILL.
+_build_lock = asyncio.Lock()
 
 
 async def get_graph():
@@ -169,15 +176,14 @@ async def get_graph():
     global _checkpointed, _saver
     if _checkpointed is not None:
         return _checkpointed
+
     try:
-        _saver = await db.checkpointer()
+        saver = await db.checkpointer()
     except Exception:
-        # Same rule the profile store follows: memory is a feature, not a
-        # dependency. Not cached, so a transient outage costs the conversation
-        # its history for one turn rather than until the next deploy.
         log.exception("checkpointer unavailable; this turn has no conversation history")
         return GRAPH
-    _checkpointed = build_graph(_saver)
+    _saver = saver
+    _checkpointed = build_graph(saver)
     return _checkpointed
 
 
@@ -209,7 +215,7 @@ async def forget_conversation(user_id: str) -> bool:
 
 async def reset_graph() -> None:
     """Drop the cached graph and close its connection, on shutdown or between tests."""
-    global _checkpointed, _saver
+    global _checkpointed, _saver, _build_lock
     if _saver is not None:
         try:
             await _saver.conn.close()
@@ -217,6 +223,11 @@ async def reset_graph() -> None:
             log.warning("checkpointer connection did not close cleanly")
     _checkpointed = None
     _saver = None
+    # Replaced, not just released. An asyncio.Lock binds to the loop it was first
+    # awaited on, and each test runs on a fresh one, so carrying the same lock
+    # across a reset would raise "bound to a different event loop" on the next
+    # cold start. Cheap enough to do in production too, where this runs once.
+    _build_lock = asyncio.Lock()
 
 
 async def prepare(message: str, user_id: str) -> tuple[ChatState, str]:

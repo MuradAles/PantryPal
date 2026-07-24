@@ -160,6 +160,22 @@ async def test_a_searched_answer_can_still_carry_a_card(
     assert done["recipe"]["title"] == "One-pan carbonara"
 
 
+async def test_a_reply_with_no_text_still_says_something(client, patch_model, scripted_model):
+    """An empty bubble with no error is the one outcome the user cannot act on.
+
+    Nothing raised, so there is no error frame to send, but the model produced no
+    prose either. R16 says never leave them with nothing.
+    """
+    patch_model(scripted_model(ai("")))
+
+    status, events = await collect_sse(client, {"user_id": "murad", "message": "hello"})
+
+    assert status == 200
+    text = "".join(payload["text"] for name, payload in events if name == "token")
+    assert text.strip(), "the turn ended with no words at all"
+    assert "error" not in [name for name, _ in events], "nothing failed, so nothing to report"
+
+
 async def test_saved_recipes_round_trip_and_are_scoped_to_one_user(client):
     """Saving returns an id, listing returns newest first, and neither leaks across users."""
     first = await client.post("/api/recipes/murad", json=CARBONARA["args"])
