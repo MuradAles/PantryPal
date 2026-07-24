@@ -9,8 +9,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY tests ./tests
 
-RUN pip install --no-cache-dir .
+# The dev extra ships in the image on purpose: a reviewer who clones this repo
+# can run `docker compose exec backend pytest` without a local Python setup.
+RUN pip install --no-cache-dir ".[dev]"
 
 EXPOSE 8000
 
