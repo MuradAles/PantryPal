@@ -86,6 +86,14 @@ class ScriptedChatModel(BaseChatModel):
     ) -> Iterator[ChatGenerationChunk]:
         message = self._next(messages)
         content = message.content if isinstance(message.content, str) else ""
+        if not content and not message.tool_calls:
+            # A reply with no text and no tool calls still has to produce one
+            # chunk. Yielding nothing makes langchain-core raise "No generations
+            # found in stream", which a real provider never does — it sends an
+            # empty final chunk instead. Without this the empty-reply case cannot
+            # be scripted at all, and the app's handling of it goes untested.
+            yield ChatGenerationChunk(message=AIMessageChunk(content="", id=message.id))
+            return
         # Split on whitespace keeping the separators, so rejoining the chunks
         # reproduces the text exactly. If it does not, the SSE contract is broken.
         for token in (part for part in re.split(r"(\s)", content) if part):

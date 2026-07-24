@@ -34,6 +34,8 @@ curl localhost:8000/health
 # {"status":"ok","database":true}
 ```
 
+Nothing else to install. Tailwind is a dev dependency Vite builds inside the container. The three webfonts load from Google Fonts at runtime, so on a machine with no internet you get the same layout in fallback faces, with the icon names showing as text.
+
 ### One thing that will catch you out
 
 If you edit `.env` after the containers exist, a plain `restart` will not pick up the change. Docker Compose bakes `env_file` at container creation.
@@ -48,7 +50,7 @@ This cost us an hour during the build, and the failure is confusing: the contain
 
 ## See it work in a minute
 
-The interesting part is the memory, and it is invisible until you give it something to remember. Type these two messages in order and watch the Memory Bank panel on the right. On a narrow window the panel moves behind the Profile tab in the bottom bar.
+The interesting part is the memory, and it is invisible until you give it something to remember. Type these two messages in order and watch the Memory Bank panel on the right. That panel is only pinned open on a window 1280px or wider. Narrower than that, it lives behind the Profile tab in the bottom bar, which is worth knowing if you are on a laptop sitting right on the boundary.
 
 ```
 1.  I only have a hot plate and one pan
@@ -62,7 +64,9 @@ The interesting part is the memory, and it is invisible until you give it someth
 
 Then restart the containers and ask again. It still knows.
 
-If the reply puts a dish on screen as a card rather than as prose, that is the model choosing to call `present_recipe`. Save it with the bookmark button and it joins the list in the left rail, which is also what the Recipes tab shows. Nothing in the code decides when a card appears. The model does, the same way it decides when to search.
+If a reply puts a dish on screen as a card rather than as prose, that is the model choosing to call `present_recipe`. Most answers are just conversation and carry no card. When one appears, the bookmark button in its top right corner keeps it, and it shows up in the Saved Recipes rail on the left, newest first. Clicking a row opens the full card and the X removes it. Nothing in the code decides when a card appears. The model does, the same way it decides when to search.
+
+The whole app is one page with three views: Chat, Recipes and Profile. They are tabs held in React state, not routes, so the URL never changes. Above 1280px both side rails are pinned open and the top bar carries Chat and Recipes. Below that the rails collapse and a bottom tab bar appears, which is where Profile lives and how you reach the Memory Bank and the delete control on a small screen.
 
 Two more worth trying, both of which cost zero API calls because they never reach a model:
 
@@ -159,12 +163,13 @@ There is no authentication, so `user_id` is whatever the client says it is. A de
 
 ```bash
 docker compose exec backend pytest -q
-# 168 passed
 ```
 
-They run in about two seconds and cost nothing, because every model in the suite is scripted locally in `backend/tests/fakes.py`. No test reaches a real API.
+The whole suite runs in under two seconds and costs nothing, because every model in it is scripted locally in `backend/tests/fakes.py`. No test reaches a real API.
 
 The ones that matter most are `tests/unit/test_profile_guard.py`, which asserts that a medical condition never reaches storage no matter what the model sends, and `tests/integration/test_policy_and_memory.py`, which asserts that blocked topics never reach the model at all. Both have been mutation-checked: break the code underneath them and they go red.
+
+A green run here is weaker evidence than it looks, and `TRADEOFFS.md` explains why. Two real bugs survived a fully green suite during this build.
 
 ---
 

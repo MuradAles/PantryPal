@@ -100,6 +100,7 @@ async def _reply(state: dict, user_id: str, collected: dict) -> AsyncIterator[st
 async def _events(first: str, rest: AsyncIterator[str], collected: dict) -> AsyncIterator[dict]:
     """Emit token events, then exactly one final event carrying the contract."""
     said: list[str] = [first] if first else []
+    failed = False
     try:
         if first:
             yield _event("token", {"text": first})
@@ -110,7 +111,18 @@ async def _events(first: str, rest: AsyncIterator[str], collected: dict) -> Asyn
         # The 200 and its headers are already on the wire, so a failure this
         # late can only be reported inside the stream, not as a status code.
         log.exception("model call failed mid-stream")
+        failed = True
         yield _event("error", {"detail": "The assistant stopped early. Try again."})
+
+    if not failed and not "".join(said).strip():
+        # A turn that produced no prose and no error would leave an empty bubble
+        # and no way to tell that anything went wrong. Nothing raised, so there
+        # is nothing to report as an error — but the user still asked a question
+        # and is owed a sentence rather than silence. Never bare-refuses, R16.
+        log.warning("the model returned no text at all; sending the fallback line")
+        fallback = "I lost my thread there. Ask me again and I'll give you a proper answer."
+        said.append(fallback)
+        yield _event("token", {"text": fallback})
 
     recipe = collected.get("recipe")
     # Computed from the finished reply, never written by the model. Counsel's

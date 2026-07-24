@@ -238,5 +238,5 @@ Still to write, the high-stakes ones, landing with phases 4 and 5:
 - [x] All four deliverables at repo root: `SCOPING.md`, working system, `README.md`, `TRADEOFFS.md`
 - [x] `.env` never committed. Checked the full history, not just the last commit: every blob in `git rev-list --all` was scanned for the literal key values and for any path matching `.env`. The only match is `.env.example`, with blank values
 - [x] Anything unfinished is written down in `TRADEOFFS.md`, honestly
+- [x] Nothing at the repo root but the three documents, the compose file, and the source directories. The design mockup and the design brief are both gone
 - [ ] Any commit past the 3-hour mark is labelled post-window
-- [ ] `frontend_example.html` at the repo root is the design mockup, now ported. It is untracked, so it will not be committed by accident, but it should be deleted or moved into `docs/` before submission so the root holds only the deliverables

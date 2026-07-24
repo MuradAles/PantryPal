@@ -176,6 +176,48 @@ async def test_missing_search_key_is_reported_not_raised(monkeypatch):
     assert message.artifact == []
 
 
+async def test_concurrent_cold_starts_open_exactly_one_checkpointer(monkeypatch, tmp_path):
+    """The first requests after startup race, because the cache is still cold.
+
+    Each unguarded caller opened its own long-lived aiosqlite connection and then
+    overwrote the module globals, so all but the last were left unreferenced,
+    never closed, and invisible to reset_graph. lifespan calls reset_graph
+    specifically to keep a non-daemon connection from holding the process open
+    past `compose stop`, so a leak here defeats the thing it exists to do.
+    """
+    import asyncio
+
+    from app import config, db
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "race.db"))
+    config.get_settings.cache_clear()
+    await db.init_db()
+    await graph.reset_graph()
+
+    built = []
+    real_checkpointer = db.checkpointer
+
+    async def counting_checkpointer():
+        """Build a real saver and record it, so the count is of open connections."""
+        saver = await real_checkpointer()
+        built.append(saver)
+        return saver
+
+    monkeypatch.setattr(db, "checkpointer", counting_checkpointer)
+
+    graphs = await asyncio.gather(*(graph.get_graph() for _ in range(5)))
+
+    assert len(built) == 1, (
+        f"{len(built)} checkpointer connections opened, {len(built) - 1} leaked"
+    )
+    # And every caller got that one graph, rather than four of them holding
+    # compiled graphs over connections nothing will ever close.
+    assert all(compiled is graphs[0] for compiled in graphs)
+
+    await graph.reset_graph()
+    config.get_settings.cache_clear()
+
+
 def test_sources_are_deduplicated_by_url():
     """The same page cited twice appears once in the UI."""
     messages = [

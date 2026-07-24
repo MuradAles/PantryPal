@@ -108,7 +108,7 @@ That skip is doing more work than it should. Under the shipped `.env`, `MODEL_BA
 
 ## A note on verification
 
-178 tests pass and cost no API quota, because every model in the suite is scripted locally. That is the right default. It is also how two real bugs survived a fully green suite, which is the part of this build I have thought about most.
+The suite runs in under two seconds and costs no API quota, because every model in it is scripted locally. That is the right default. It is also how two real bugs survived a fully green suite, which is the part of this build I have thought about most.
 
 The first: the model was not calling `remember_about_user` at all. The persona told it to save things "quietly," which a small model read as low priority. Scripted models call whatever the script tells them to, so no mocked test could have caught it. One real request did.
 
@@ -126,37 +126,12 @@ Not verified: sources from a real search, whether the model chooses to call `pre
 
 ## Findings from an independent review, and what was done about them
 
-A read-only reviewer audited the committed code near the end of the build. Four
-things it found are worth stating plainly.
+A read-only reviewer audited the committed code near the end of the build. Some of what it found is already described above, so this is the part that is new, plus what was done in response.
 
-**Fixed: the delete route reported success on a failed write.** A mutation-test
-edit had been left in `delete_profile`, so `DELETE /api/profile` answered 204,
-meaning everything about you is gone, when the delete had actually thrown. 170
-tests were green over it, because the mutation's whole purpose had been to prove
-nothing covered that line. It shipped in a commit that was reviewed by running
-the tests rather than by reading the diff. There is now a test that makes the
-database raise and asserts a 503.
+**Fixed: the delete route reported success on a failed write.** This is the second bug in the verification note. What the review added is how it got in: the commit carrying it was checked by running the tests rather than by reading the diff, and the mutation's whole purpose had been to prove nothing covered that line. There is now a test that makes the database raise and asserts a 503, so the route cannot quietly answer 204 again.
 
-**Fixed: one click on Stop defeated the allergen notice.** The notice arrives on
-the final stream frame, and an aborted stream never sends one, so a half-written
-recipe rendered with no disclosure at all. The client now applies the notice
-when a stream ends early with text already on screen, which is the same
-asymmetry the server uses.
+**Fixed: one click on Stop defeated the allergen notice.** The notice arrives on the final stream frame, and an aborted stream never sends one, so a half-written recipe rendered with no disclosure at all. This is a good illustration of why the notice being server-computed was not by itself enough: the value was right and never reached the screen. The client now applies the notice when a stream ends early with text already on screen, matching the asymmetry the server uses.
 
-**Known and not fixed: the medical denylist misses conditions.** It is a word
-list, so anything not on it is stored verbatim. Common conditions are covered
-and less common ones are not. The structural protection still holds, in that
-there is no column a condition can be stored in as a fact, but a mention can
-survive inside a free-text preference. A classifier on the write path would be
-the real fix.
+**Known and not fixed: an allergy is sometimes filed as a dislike rather than an avoid.** Both are respected in the prompt, so the assistant will not suggest either, but the distinction that matters to counsel is not reliably preserved, because the write path takes whichever field the model chose. This is the same weakness as the denylist above seen from the other side. The guard controls what cannot be written and not which field a legitimate write lands in.
 
-**Known and not fixed: a cold-start race in the graph builder.** Concurrent
-first requests can each open a checkpointer connection, and all but one are
-leaked. It only happens on the first requests after a restart, and it leaks
-connections rather than corrupting data, so it was left in favour of the two
-above.
-
-An allergy is also sometimes filed as a dislike rather than an avoid. Both are
-respected in the prompt, so the assistant does not suggest either, but the
-distinction that matters to counsel is not reliably preserved. The write path
-takes whichever field the model chose.
+**Known and not fixed: a cold-start race in the graph builder.** Concurrent first requests can each open a checkpointer connection, and all but one are leaked. It only happens on the first requests after a restart, and it leaks connections rather than corrupting data, so it lost to the two fixes above on time.
