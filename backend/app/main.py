@@ -9,8 +9,7 @@ from fastapi import FastAPI, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
 from sse_starlette.sse import EventSourceResponse
 
-from app import db
-from app.llm import get_model
+from app import db, llm
 from app.prompts import system_prompt
 from app.schemas import MAX_MESSAGE_CHARS, ChatDone, ChatRequest
 
@@ -43,19 +42,14 @@ def _event(name: str, payload: dict) -> dict:
     return {"event": name, "data": json.dumps(payload)}
 
 
-def _chunk_text(content: str | list) -> str:
-    """Flatten a message chunk's content, which may arrive as content blocks."""
-    if isinstance(content, str):
-        return content
-    return "".join(b.get("text", "") for b in content if isinstance(b, dict))
-
-
 async def _reply(message: str) -> AsyncIterator[str]:
     """Stream reply text from the model, one chunk at a time."""
-    model = get_model("fast")
+    # Looked up through the module, not imported by name, so a test can swap
+    # llm.get_model without patching import internals.
+    model = llm.get_model("fast")
     prompt = [SystemMessage(system_prompt()), HumanMessage(message)]
     async for chunk in model.astream(prompt):
-        text = _chunk_text(chunk.content)
+        text = llm.text_of(chunk)
         if text:
             yield text
 

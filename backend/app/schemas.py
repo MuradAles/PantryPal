@@ -23,6 +23,13 @@ class ChatRequest(BaseModel):
         return cleaned
 
 
+class Source(BaseModel):
+    """One web result the answer drew on. Titled, because a bare URL is poor link text."""
+
+    title: str
+    url: str
+
+
 class ChatDone(BaseModel):
     """Final SSE event: the UI chrome the model is not allowed to write itself."""
 
@@ -30,5 +37,5 @@ class ChatDone(BaseModel):
     # frontend from this flag, never from anything the model says. See SPEC R18.
     allergen_notice: bool = False
 
-    # Result URLs, populated once the search tool lands in phase 3.
-    sources: list[str] = Field(default_factory=list)
+    # Populated once the search tool lands in phase 3.
+    sources: list[Source] = Field(default_factory=list)
