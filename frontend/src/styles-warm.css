@@ -1,0 +1,953 @@
+/* PantryPal — variant B, "the friend who cooks, texting you back".
+   Warm ground, soft edges, terracotta used freely. Keyed to the class names in
+   DESIGN-BRIEF.md §6 and to the markup in src/components/*.jsx as it stands. */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,0..100&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap');
+
+:root {
+  --cream: #f7f3ea;
+  --card: #ffffff;
+  --terracotta: #b4593c;
+  --terracotta-deep: #96442c;
+  --wash: #f0e2da;
+  --ink: #2b2320;
+  --ink-muted: #7a6e66;
+  --sage: #dce5d6;
+
+  /* The brief's notice ground (#EDF1F3) pulled toward the cream so the box reads
+     as a fold of the same paper rather than a panel bolted on from a colder app. */
+  --notice: #eff0ec;
+
+  --rule: rgba(43, 35, 32, 0.1);
+  --rule-soft: rgba(43, 35, 32, 0.06);
+
+  --serif: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Warm variant: everything rounds more than you expect it to. */
+  --r-card: 20px;
+  --r-bubble: 20px;
+  --r-soft: 14px;
+  --r-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(43, 35, 32, 0.04), 0 10px 28px -18px rgba(43, 35, 32, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--cream);
+  /* A breath of terracotta in the ground — the room has a lamp on in it. */
+  background-image:
+    radial-gradient(120% 70% at 12% -10%, rgba(180, 89, 60, 0.07), transparent 60%),
+    radial-gradient(90% 60% at 100% 0%, rgba(180, 89, 60, 0.045), transparent 55%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-variation-settings: 'SOFT' 40;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+a {
+  color: var(--terracotta);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* ---------------------------------------------------------------- shell --- */
+
+.app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 1.25rem;
+}
+
+.app-header {
+  flex: none;
+  padding: 1.15rem 0 0.9rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--terracotta);
+  letter-spacing: -0.015em;
+}
+
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.75rem;
+  align-items: stretch;
+}
+
+/* ---------------------------------------------------- conversation column - */
+
+.chat {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.5rem 0.5rem 0;
+  scrollbar-color: rgba(43, 35, 32, 0.18) transparent;
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.message {
+  display: flex;
+  margin: 0 0 1.15rem;
+}
+
+.message-user {
+  justify-content: flex-end;
+}
+
+.message-assistant {
+  justify-content: flex-start;
+}
+
+/* Empty state ------------------------------------------------------------- */
+
+.empty-state {
+  max-width: 34rem;
+  padding: 3.5rem 0 1rem;
+}
+
+.empty-state h2 {
+  margin: 0 0 1rem;
+  font-size: 2.05rem;
+  line-height: 1.18;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.018em;
+}
+
+.empty-state p {
+  margin: 0 0 0.9rem;
+  max-width: 30rem;
+  color: var(--ink-muted);
+  line-height: 1.68;
+}
+
+.empty-state p:last-child {
+  font-size: 0.94rem;
+}
+
+/* User turn --------------------------------------------------------------- */
+
+.message-user .bubble {
+  max-width: 30rem;
+  padding: 0.7rem 1.05rem;
+  border-radius: var(--r-bubble);
+  background: var(--terracotta);
+  color: #fdf8f1;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 8px 20px -16px rgba(150, 68, 44, 0.9);
+}
+
+/* Assistant turn ---------------------------------------------------------- */
+
+.message-assistant .bubble {
+  position: relative;
+  max-width: 46rem;
+  width: 100%;
+  padding: 1.4rem 1.6rem 1.5rem;
+  background: var(--card);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The eyebrow. No element exists for it, so it is drawn here rather than by
+   editing the component. */
+.message-assistant .bubble::before {
+  content: 'PantryPal';
+  display: block;
+  margin-bottom: 0.85rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+}
+
+.message-assistant .bubble > :first-child {
+  margin-top: 0;
+}
+
+.message-assistant .bubble > :last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------- markdown, as a cookbook page */
+
+.message-assistant .bubble p {
+  margin: 0 0 0.95rem;
+  line-height: 1.65;
+}
+
+.message-assistant .bubble h1 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1.85rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.message-assistant .bubble h2 {
+  margin: 1.8rem 0 0.7rem;
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--terracotta);
+  letter-spacing: 0.01em;
+}
+
+.message-assistant .bubble h3 {
+  margin: 1.35rem 0 0.5rem;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.message-assistant .bubble strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.message-assistant .bubble em {
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+/* Ingredients: two columns, small terracotta bullets. */
+.message-assistant .bubble ul {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 2.25rem;
+}
+
+.message-assistant .bubble ul li {
+  position: relative;
+  break-inside: avoid;
+  padding-left: 1.05rem;
+  margin-bottom: 0.4rem;
+  line-height: 1.55;
+}
+
+.message-assistant .bubble ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--terracotta);
+}
+
+/* Method: ghosted 01 / 02 in the left gutter. */
+.message-assistant .bubble ol {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.message-assistant .bubble ol > li {
+  position: relative;
+  counter-increment: step;
+  padding-left: 3.1rem;
+  margin-bottom: 1.05rem;
+  line-height: 1.65;
+}
+
+.message-assistant .bubble ol > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: -0.1em;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: var(--terracotta);
+  opacity: 0.3;
+  font-variant-numeric: lining-nums;
+}
+
+/* Nested lists drop the two-column and gutter treatment. */
+.message-assistant .bubble li ul,
+.message-assistant .bubble li ol {
+  columns: auto;
+  margin: 0.4rem 0 0;
+}
+
+.message-assistant .bubble li ol > li {
+  padding-left: 1.4rem;
+}
+
+.message-assistant .bubble li ol > li::before {
+  font-size: 0.95rem;
+  top: 0.05em;
+}
+
+.message-assistant .bubble code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  padding: 0.1em 0.38em;
+  border-radius: 6px;
+  background: var(--wash);
+  color: var(--terracotta-deep);
+}
+
+.message-assistant .bubble pre {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: var(--r-soft);
+  background: #faf6ef;
+  overflow-x: auto;
+}
+
+.message-assistant .bubble pre code {
+  padding: 0;
+  background: none;
+  color: var(--ink);
+}
+
+.message-assistant .bubble blockquote {
+  margin: 0 0 1rem;
+  padding: 0.15rem 0 0.15rem 1.05rem;
+  border-left: 2px solid var(--wash);
+  color: var(--ink-muted);
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.message-assistant .bubble hr {
+  border: none;
+  border-top: 1px solid var(--rule-soft);
+  margin: 1.6rem 0;
+}
+
+.message-assistant .bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+  font-size: 0.94rem;
+}
+
+.message-assistant .bubble th,
+.message-assistant .bubble td {
+  text-align: left;
+  padding: 0.45rem 0.6rem 0.45rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.message-assistant .bubble th {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* Streaming --------------------------------------------------------------- */
+
+.generating {
+  margin: 0.35rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.94rem;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.generating span {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------- allergen notice --- */
+
+/* Present on nearly every reply, so it is built to be skimmed past: same paper
+   family as the card, no border, no icon badge, label set as quiet meta rather
+   than a bold warning. It sits inside the card's padding, above sources. */
+.allergen-notice {
+  margin: 1.5rem 0 0;
+  padding: 0.8rem 1rem 0.8rem 2.35rem;
+  position: relative;
+  background: var(--notice);
+  border-radius: var(--r-soft);
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.allergen-notice::before {
+  content: 'ⓘ';
+  position: absolute;
+  left: 0.95rem;
+  top: 0.78rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+
+.allergen-notice strong {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+
+/* --------------------------------------------------------------- sources --- */
+
+.sources {
+  margin: 1.15rem 0 0;
+}
+
+.sources h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.sources ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sources li {
+  min-width: 0;
+}
+
+.sources a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 18rem;
+  padding: 0.26rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-muted);
+  background: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.sources a::after {
+  content: '↗';
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+.sources a:hover {
+  background: var(--wash);
+  border-color: transparent;
+  color: var(--terracotta-deep);
+}
+
+/* ---------------------------------------------------------------- errors --- */
+
+/* The one place that is allowed to look like something went wrong. Warm, but
+   unmistakably not the allergen notice: terracotta wash, solid rule, ink label. */
+.stream-error {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-soft);
+  border-left: 3px solid var(--terracotta);
+  background: var(--wash);
+  color: var(--terracotta-deep);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.chat > .stream-error {
+  margin: 0 0 0.75rem;
+}
+
+/* -------------------------------------------------------------- composer --- */
+
+.composer {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding: 0.55rem 0.55rem 0.55rem 0.4rem;
+  background: var(--card);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-soft);
+  padding: 0.55rem 0.65rem;
+  resize: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--ink-muted);
+  opacity: 0.75;
+}
+
+.composer textarea:focus {
+  outline: none;
+}
+
+.composer textarea:disabled {
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: default;
+}
+
+/* The whole field lights up rather than a box inside a box. */
+.composer:focus-within {
+  box-shadow: 0 0 0 2px var(--terracotta), var(--shadow-card);
+}
+
+.composer button {
+  flex: none;
+  padding: 0.62rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--terracotta);
+  color: #fdf8f1;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease;
+}
+
+.composer button:hover:not(:disabled) {
+  background: var(--terracotta-deep);
+}
+
+/* Stop: same shape, drained of fill, so the swap does not jump the layout. */
+.composer button[type='button'] {
+  background: transparent;
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
+
+.composer button[type='button']:hover:not(:disabled) {
+  background: var(--wash);
+}
+
+/* --------------------------------------------------------- memory panel --- */
+
+.profile {
+  min-width: 0;
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.35rem 1.3rem 0;
+  background: var(--card);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+  scrollbar-color: rgba(43, 35, 32, 0.18) transparent;
+}
+
+.profile h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.22rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.profile-note {
+  margin: 0 0 1.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.profile-group {
+  margin-bottom: 1.35rem;
+}
+
+.profile-group h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.profile-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  opacity: 0.75;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.4rem 0.22rem 0.7rem;
+  border-radius: var(--r-pill);
+  background: #f3f0ea;
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  animation: tag-in 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* A new tag mid-conversation is the proof that the product remembers you, so it
+   arrives rather than appears. */
+@keyframes tag-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tag button {
+  border: none;
+  background: none;
+  padding: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  line-height: 1;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.tag button:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(43, 35, 32, 0.08);
+}
+
+/* No modifier classes exist on the groups, so the fills key off document order:
+   1 Cookware, 2 Likes, 3 Dislikes, 4 Avoids. */
+.profile-group:nth-of-type(2) .tag {
+  background: var(--sage);
+}
+
+.profile-group:nth-of-type(4) .tag {
+  background: var(--wash);
+  color: var(--terracotta-deep);
+}
+
+.profile-group:nth-of-type(4) .tag button {
+  color: var(--terracotta-deep);
+}
+
+/* Delete: pinned to the foot of the panel and never scrolled out of reach. */
+.profile-delete {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 0.9rem 0 1.1rem;
+  background: var(--card);
+  border-top: 1px solid var(--rule-soft);
+}
+
+.profile-delete p {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.profile-delete button {
+  width: 100%;
+  margin-bottom: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.profile-delete button:hover:not(:disabled) {
+  background: var(--wash);
+  color: var(--terracotta-deep);
+  border-color: transparent;
+}
+
+/* In the confirming state the first button is the destructive one. */
+.profile-delete p + button {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: #fdf8f1;
+}
+
+.profile-delete p + button:hover:not(:disabled) {
+  background: var(--terracotta-deep);
+  border-color: var(--terracotta-deep);
+  color: #fdf8f1;
+}
+
+.profile-delete button:last-child {
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------ a11y bits --- */
+
+:focus-visible {
+  outline: 2px solid var(--terracotta);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.composer:focus-within textarea:focus-visible,
+.composer textarea:focus-visible {
+  outline: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------- responsive --- */
+
+@media (max-width: 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 1.25rem;
+  }
+
+  .message-assistant .bubble {
+    padding: 1.25rem 1.3rem 1.35rem;
+  }
+}
+
+/* Stacked: the panel drops below the conversation and stays fully rendered.
+   Nothing collapses behind a control, which is what keeps delete reachable. */
+@media (max-width: 48rem) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    padding: 0 1rem 1rem;
+  }
+
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+
+  .transcript {
+    min-height: 40vh;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .composer {
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 2;
+  }
+
+  .profile {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .profile-delete {
+    position: static;
+  }
+
+  .message-user .bubble {
+    max-width: 85%;
+  }
+}
+
+/* 390px: one column of ingredients, a smaller gutter numeral, delete unchanged. */
+@media (max-width: 26rem) {
+  body {
+    font-size: 16px;
+  }
+
+  .app {
+    padding: 0 0.75rem 0.75rem;
+  }
+
+  .message-assistant .bubble {
+    padding: 1.1rem 1.05rem 1.2rem;
+    border-radius: var(--r-soft);
+  }
+
+  .message-assistant .bubble ul {
+    columns: auto;
+  }
+
+  .message-assistant .bubble h1 {
+    font-size: 1.5rem;
+  }
+
+  .message-assistant .bubble ol > li {
+    padding-left: 2.4rem;
+  }
+
+  .message-assistant .bubble ol > li::before {
+    font-size: 1.2rem;
+  }
+
+  .empty-state {
+    padding-top: 2rem;
+  }
+
+  .empty-state h2 {
+    font-size: 1.65rem;
+  }
+
+  .allergen-notice {
+    padding-left: 2.15rem;
+  }
+
+  .sources a {
+    max-width: 100%;
+  }
+
+  .composer {
+    gap: 0.4rem;
+    padding: 0.45rem;
+  }
+
+  .composer button {
+    padding: 0.6rem 1rem;
+  }
+
+  .profile {
+    padding: 1.1rem 1rem 0.25rem;
+  }
+
+  /* Full-width targets so the delete control is never a thin tap area. */
+  .profile-delete button {
+    padding: 0.7rem 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .generating span {
+    opacity: 0.7;
+  }
+}
