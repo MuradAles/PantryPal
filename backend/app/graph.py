@@ -152,6 +152,32 @@ async def get_graph():
     return _checkpointed
 
 
+async def forget_conversation(user_id: str) -> bool:
+    """Erase a user's stored conversation, returning whether it is actually gone.
+
+    Deleting the profile alone would leave every word they typed sitting in the
+    checkpoint tables, which is not what "delete everything about me" means. It
+    is also the one route around the medical write guard: the guard stops a
+    condition becoming a stored fact, but the sentence they typed it in would
+    still be there.
+    """
+    try:
+        await get_graph()
+        if _saver is None:
+            # No checkpointer means storage was unreachable, so we cannot say the
+            # transcript is gone. Reported as a failure rather than as nothing to do.
+            log.warning("cannot delete the conversation for %s: no checkpointer", user_id)
+            return False
+        # adelete_thread rather than hand-rolled SQL against `checkpoints` and
+        # `writes`: those table names belong to the checkpointer, and a version
+        # bump that renames them would silently orphan rows we promised to erase.
+        await _saver.adelete_thread(user_id)
+    except Exception:
+        log.exception("could not delete the conversation for %s", user_id)
+        return False
+    return True
+
+
 async def reset_graph() -> None:
     """Drop the cached graph and close its connection, on shutdown or between tests."""
     global _checkpointed, _saver

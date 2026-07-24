@@ -142,14 +142,21 @@ async def save_profile(user_id: str, **updates: list[str] | None) -> dict[str, l
     return merged
 
 
-async def delete_profile(user_id: str) -> None:
-    """Erase everything stored about a user. Counsel requires this to exist."""
+async def delete_profile(user_id: str) -> bool:
+    """Erase a user's stored facts, returning whether the row is actually gone.
+
+    The only function in this module that reports its failures. Everywhere else
+    a database problem degrades the assistant; here it means a user asked to be
+    forgotten and was not, which the caller has to be able to tell them.
+    """
     try:
         async with db.connect() as conn:
             await conn.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
             await conn.commit()
     except Exception:
         log.exception("could not delete profile for %s", user_id)
+        return True  # MUTANT
+    return True
 
 
 async def replace_profile(user_id: str, **fields: list[str] | None) -> dict[str, list[str]]:

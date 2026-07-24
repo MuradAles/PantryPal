@@ -16,6 +16,17 @@ from tests.integration.conftest import collect_sse
 
 
 @pytest.fixture
+def dead_storage(monkeypatch):
+    """Point the app at a path SQLite cannot open, simulating a lost volume."""
+    from app import config
+
+    monkeypatch.setenv("DATABASE_PATH", "/nonexistent-directory/pantrypal.db")
+    config.get_settings.cache_clear()
+    yield
+    config.get_settings.cache_clear()
+
+
+@pytest.fixture
 def fake_search(monkeypatch):
     """Swap Tavily for a canned result, so the tool runs without network."""
 
@@ -132,6 +143,107 @@ async def test_sources_belong_to_the_turn_that_cited_them(
         {"title": "Nduja explained", "url": "https://example.com/nduja"}
     ]
     assert [p for n, p in second if n == "done"][0]["sources"] == []
+
+
+async def test_deleting_a_profile_also_erases_the_conversation(
+    client, patch_model, scripted_model
+):
+    """Counsel's deletion requirement covers the transcript, not just the profile."""
+    model = patch_model(
+        scripted_model(ai("Bagna cauda."), ai("Still bagna cauda."), ai("Fresh start."))
+    )
+
+    await collect_sse(client, {"user_id": "murad", "message": "artichokes and anchovies"})
+    await collect_sse(client, {"user_id": "murad", "message": "anything else"})
+    assert "artichokes and anchovies" in [m.content for m in model.calls[1]]
+
+    assert (await client.delete("/api/profile/murad")).status_code == 204
+
+    await collect_sse(client, {"user_id": "murad", "message": "hello again"})
+    after = [m.content for m in model.calls[2]]
+    assert "artichokes and anchovies" not in after, "the deleted conversation came back"
+    assert after[-1] == "hello again"
+
+
+async def stored_checkpoint_rows(thread_id: str) -> int:
+    """Count the checkpointer's own rows for one thread, without going through it."""
+    from app import db
+
+    total = 0
+    async with db.connect() as conn:
+        for table in ("checkpoints", "writes"):
+            cursor = await conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE thread_id = ?", (thread_id,)
+            )
+            total += (await cursor.fetchone())[0]
+    return total
+
+
+async def test_delete_leaves_no_row_behind_in_the_checkpoint_tables(
+    client, patch_model, scripted_model
+):
+    """Asserted against storage directly, because "it behaves as if gone" is not gone."""
+    patch_model(scripted_model(ai("Bagna cauda."), ai("Still bagna cauda.")))
+    await collect_sse(client, {"user_id": "murad", "message": "artichokes and anchovies"})
+    await collect_sse(client, {"user_id": "murad", "message": "anything else"})
+    assert await stored_checkpoint_rows("murad") > 0, "nothing was stored to delete"
+
+    assert (await client.delete("/api/profile/murad")).status_code == 204
+
+    assert await stored_checkpoint_rows("murad") == 0
+
+
+async def test_deleting_one_user_does_not_touch_another(
+    client, patch_model, scripted_model
+):
+    """A deletion is scoped to the person who asked for it."""
+    model = patch_model(scripted_model(ai("One."), ai("Two."), ai("Three.")))
+    await collect_sse(client, {"user_id": "murad", "message": "artichokes"})
+    await collect_sse(client, {"user_id": "someone-else", "message": "anchovies"})
+
+    await client.delete("/api/profile/murad")
+
+    assert await stored_checkpoint_rows("murad") == 0
+    assert await stored_checkpoint_rows("someone-else") > 0
+    # And their conversation still works, rather than merely having rows on disk.
+    await collect_sse(client, {"user_id": "someone-else", "message": "and now"})
+    assert "anchovies" in [m.content for m in model.calls[2]]
+
+
+async def test_a_deletion_that_cannot_finish_says_so(client, dead_storage):
+    """A 204 the user cannot rely on is worse than an error they can retry."""
+    response = await client.delete("/api/profile/murad")
+
+    assert response.status_code == 503
+    assert "try again" in response.json()["detail"].lower()
+
+
+@pytest.mark.parametrize("failing", ["profile", "conversation"])
+async def test_either_half_of_the_deletion_failing_is_reported(client, monkeypatch, failing):
+    """Both halves are load-bearing, so each is failed on its own.
+
+    Failing them together, as a dead database does, cannot tell whether the route
+    checks both results or only one of them.
+    """
+    from app import graph
+    from app import profile as user_profile
+
+    async def _fails(user_id: str) -> bool:
+        return False
+
+    async def _succeeds(user_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        user_profile, "delete_profile", _fails if failing == "profile" else _succeeds
+    )
+    monkeypatch.setattr(
+        graph, "forget_conversation", _fails if failing == "conversation" else _succeeds
+    )
+
+    response = await client.delete("/api/profile/murad")
+
+    assert response.status_code == 503, f"a failed {failing} delete was reported as success"
 
 
 async def test_chat_still_answers_when_the_checkpointer_cannot_open(

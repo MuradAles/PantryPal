@@ -165,4 +165,19 @@ async def edit_profile(user_id: str, update: ProfileUpdate) -> dict:
 @app.delete("/api/profile/{user_id}", status_code=204)
 async def erase_profile(user_id: str) -> None:
     """Erase everything stored about a user. Required by counsel."""
-    await user_profile.delete_profile(user_id)
+    # Both stores, not just the profile one. Once conversations persist, the
+    # transcript is as much "stored about them" as the profile row is.
+    #
+    # They cannot share a transaction — the checkpointer owns its own connection
+    # and SQLite has no cross-connection transaction — so instead both deletes
+    # are idempotent and the conversation goes first. A failure part way through
+    # leaves a retry that converges, and this route never answers 204 unless
+    # both actually succeeded. Reporting a deletion that did not happen is the
+    # one failure mode counsel would care about.
+    forgotten = await graph.forget_conversation(user_id)
+    deleted = await user_profile.delete_profile(user_id)
+    if not (forgotten and deleted):
+        raise HTTPException(
+            status_code=503,
+            detail="Could not delete everything right now. Some of it may still be stored. Try again.",
+        )
