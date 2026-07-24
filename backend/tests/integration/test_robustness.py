@@ -74,6 +74,35 @@ async def test_profile_reads_and_writes_degrade_instead_of_erroring(client, dead
     assert (await client.delete("/api/profile/murad")).status_code == 503
 
 
+async def test_a_failed_profile_write_alone_still_answers_503(
+    client, dead_database, monkeypatch
+):
+    """The profile half of the deletion, isolated, from the real store to the status code.
+
+    The test above cannot see this one: with the database gone every half fails,
+    so the 503 arrives whether or not the route consults the profile result at
+    all. Here the other two halves are told to succeed, leaving `deleted` as the
+    only term that can produce the error — and it is the real delete_profile
+    against a real failed write, not a stub returning False.
+
+    This is the assertion that was missing when delete_profile's except branch
+    was returning True: the route answered 204 while the row was still in SQLite.
+    """
+    from app import graph
+    from app import recipes as saved_recipes
+
+    async def _succeeds(user_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(graph, "forget_conversation", _succeeds)
+    monkeypatch.setattr(saved_recipes, "delete_all", _succeeds)
+
+    response = await client.delete("/api/profile/murad")
+
+    assert response.status_code == 503, "a failed profile delete was reported as success"
+    assert "try again" in response.json()["detail"].lower()
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -166,3 +195,36 @@ async def test_non_english_input_gets_an_answer(
     assert status == 200
     assert len(model.calls) == 1
     assert "".join(payload["text"] for name, payload in events if name == "token")
+
+
+async def test_delete_reports_failure_when_only_the_profile_write_fails(client, monkeypatch):
+    """The profile delete alone must be able to decide the response.
+
+    The existing DELETE-503 test breaks both halves at once, so the conversation
+    wipe carries the failure and `deleted` is never the deciding term. That let a
+    mutation live in delete_profile's except branch, returning True on a failed
+    write, while the suite stayed green and the route answered 204 to a user who
+    had asked to be forgotten.
+
+    This one holds the conversation wipe successful and breaks only the profile
+    write, so the assertion cannot pass unless delete_profile reports honestly.
+    """
+    from app import db, graph
+    from app import recipes as saved_recipes
+
+    async def ok(_user_id: str) -> bool:
+        return True
+
+    def connect_fails():
+        raise RuntimeError("disk gone")
+
+    monkeypatch.setattr(graph, "forget_conversation", ok)
+    monkeypatch.setattr(saved_recipes, "delete_all", ok)
+    # Break storage itself, so delete_profile's own except branch decides the
+    # answer. Patching delete_profile to raise would jump straight past the
+    # branch this test exists to protect.
+    monkeypatch.setattr(db, "connect", connect_fails)
+
+    response = await client.delete("/api/profile/someone")
+
+    assert response.status_code == 503, "a failed profile delete must not answer 204"
