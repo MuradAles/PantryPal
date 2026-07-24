@@ -30,8 +30,15 @@ class Settings(BaseSettings):
     model_fast: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_FAST")
     model_smart: str = Field(default="gemini-3.5-flash-lite", alias="MODEL_SMART")
 
-    # Free-tier daily caps are per model, so a backup on a different model id
-    # buys a second allowance once the primary is spent.
+    # Free-tier daily caps are per model id, so a backup on a DIFFERENT id buys a
+    # second allowance once the primary is spent. Note what is actually shipped
+    # below: this default equals model_fast and model_classifier, so today it
+    # only buys that second allowance for the smart tier. llm.py skips composing
+    # the fallback when the ids match, because retrying into the same exhausted
+    # quota costs a round trip to learn nothing. Point this at an id distinct
+    # from the other three and the fast tier gains a real backup. Left as is
+    # rather than guessed at, since no id was verified against the live API
+    # during this build. See .env.example and TRADEOFFS.md.
     model_backup: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_BACKUP")
 
     # Ceiling on the agent's tool-calling loop. Guards against runaway cost.
