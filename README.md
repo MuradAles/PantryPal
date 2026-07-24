@@ -1,99 +1,200 @@
-# Applied AI Engineer: Take-Home Assessment
+# PantryPal
 
-**Role:** Applied AI Engineer (Full-Stack)
-**Time:** 3 hours, self-timeboxed
-**Submission:** Public GitHub repo, or private repo shared with @elmdecoste and @bgreal5
+An AI cooking assistant. Ask it what to cook, it answers, and it remembers your kitchen between sessions so it never suggests something you cannot actually make.
 
----
-
-## Before you start
-
-Your 3-hour window starts when the assessment zip is delivered. The delivery system tracks the clock automatically, so there's no need to mark a start time yourself.
-
-The time box is intentionally tight. Part of what we're evaluating is what you choose to build and what you choose to defer.
-
-How to work:
-
-1. Read the artifacts in `/brief/` and decide what to build.
-2. Commit as you go so we can see your progress.
-3. At the 3-hour mark, stop. If you commit past that point, note them as post-window in your writeup. We'd rather see honesty than a silent overrun.
-
-If something goes wrong (life, illness, internet), just tell us. Rescheduling is fine; silent extensions are not.
+Built for the PressW Applied AI Engineer assessment. The reasoning behind every scoping decision is in [SCOPING.md](SCOPING.md), and an honest account of what is still wrong with it is in [TRADEOFFS.md](TRADEOFFS.md).
 
 ---
 
-## What you're building
+## Running it
 
-PantryPal is an early-stage B2C startup building an AI-powered cooking assistant. They've engaged us to build the first working version of their core product: a conversational assistant that helps users figure out what to cook.
+You need Docker, and two API keys.
 
-Instead of a clean spec, we've included the actual messages and artifacts we received from the PantryPal team during discovery. You'll find them in `/brief/`:
+```bash
+cp .env.example .env
+```
 
-- An email from their Head of Product
-- A voice-memo transcript from the CEO
-- A message from their Head of Customer Experience
-- A late-breaking email from their legal counsel
+Then fill in two values in `.env`:
 
-Your first job is to read these carefully and decide what to build.
+| Variable | Where to get it |
+|---|---|
+| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey), free tier is fine |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com), free tier is fine |
 
----
+Leave the model ids alone unless you want to change them. Then:
 
-## Deliverables
+```bash
+docker compose up -d --build
+```
 
-You will submit four things:
+Open **http://localhost:5173**. The API is on port 8000.
 
-### 1. A scoping document (`SCOPING.md` in the repo root)
+```bash
+curl localhost:8000/health
+# {"status":"ok","database":true}
+```
 
-Before writing code, produce a short scoping doc with the following sections:
+### One thing that will catch you out
 
-- **Scope committed:** what you're actually building, as a tight list
-- **Scope cut:** what you heard but decided not to do, with reasoning
-- **Contradictions resolved:** where stakeholders disagreed, and how you decided
-- **Clarifying questions:** what you'd want answered before a production build
-- **Assumptions made:** what you decided without asking
-- **Risks accepted:** what could bite later and why you're accepting it
+If you edit `.env` after the containers exist, a plain `restart` will not pick up the change. Docker Compose bakes `env_file` at container creation.
 
-Keep this to 1-2 pages. We care about what's in each bucket. A scoping doc with three sharp, defensible entries per section beats one with fifteen generic ones.
+```bash
+docker compose up -d --force-recreate backend
+```
 
-### 2. A working system
-
-Build against your own scope. Baseline requirements (non-negotiable):
-
-- A Python backend using **FastAPI** and **LangGraph**
-- LLM-driven tool use: the model decides when to invoke tools (no hardcoded sequences)
-- At least one external tool (web search or equivalent)
-- All LLM calls routed through **LangChain** (no model-specific SDKs directly)
-- A chat frontend (stack of your choice; we recommend something you're fast in)
-- Docker setup, so we can clone and run
-
-Everything else is up to you. Implement what your scope says you'll implement.
-
-### 3. A README
-
-Setup instructions, example requests (curl is fine), and anything a teammate would need to run and understand the code.
-
-### 4. A trade-offs writeup (`TRADEOFFS.md` in the repo root)
-
-Short doc covering:
-
-- What you actually built vs. what you scoped (time pressure is expected; tell us what got cut)
-- Specific trade-offs you made and why
-- What you'd do next with more time
-- Known issues or unhandled cases
+This cost us an hour during the build, and the failure is confusing: the container keeps running the old values while the file on disk says something else.
 
 ---
 
-## Expectations and norms
+## See it work in a minute
 
-- **Use AI tools.** We do, and we expect you to. We're evaluating your judgment and your output.
-- **Don't optimize for feature count.** A smaller working system with defensible choices beats a larger system built on unexamined assumptions.
-- **Ship something that runs.** If you have to cut, cut scope before quality.
-- **Document unfinished work.** Stubs with clear TODOs are fine. Leave a clear trail of what's unfinished.
-- **Expect robustness to be tested.** We'll exercise your system with inputs you didn't design for. Build accordingly.
+The interesting part is the memory, and it is invisible until you give it something to remember. Type these two messages in order and watch the right-hand panel.
+
+```
+1.  I only have a hot plate and one pan
+        ->  "hot plate" and "one pan" appear under Cookware.
+            Nobody asked it to save those. The model decided to.
+
+2.  what's for dinner?
+        ->  a suggestion that works in one pan, because it now
+            knows what you own.
+```
+
+Then restart the containers and ask again. It still knows.
+
+Two more worth trying, both of which cost zero API calls because they never reach a model:
+
+```
+3.  is this chicken from Tuesday still safe to eat?
+        ->  a warm decline pointing at food safety authorities
+
+4.  write my cover letter
+        ->  a friendly redirect back to food
+```
+
+And two that show the boundaries are generous rather than brittle:
+
+```
+5.  what wine goes with lamb?          ->  answered, food-adjacent is in scope
+6.  I'm allergic to shellfish          ->  saved to Avoids, never suggested again
+```
 
 ---
 
-## A note on the brief
+## Using the API directly
 
-The PantryPal artifacts are what you'd actually receive from a client at this stage: incomplete, sometimes contradictory, with real constraints buried in asides. Reading them carefully is part of the work. Do not assume every stated requirement belongs in your build, and do not assume every omission is unimportant.
+```bash
+# stream a reply
+curl -N -X POST localhost:8000/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id":"you","message":"I only have a hot plate and one pan"}'
+```
 
-Good luck.
+Replies arrive as server-sent events: `token` events while generating, then exactly one `done` event carrying the response contract.
+
+```
+event: token
+data: {"text": "Carbonara, then. Boil the pasta in the pan"}
+
+event: done
+data: {"allergen_notice": true, "sources": []}
+```
+
+```bash
+# what it remembers about you
+curl localhost:8000/api/profile/you
+
+# edit one field, leaving the others alone
+curl -X PATCH localhost:8000/api/profile/you \
+  -H 'Content-Type: application/json' -d '{"likes":["thai"]}'
+
+# erase everything, profile and conversation history together
+curl -X DELETE localhost:8000/api/profile/you
+```
+
+| Method | Path | Does |
+|---|---|---|
+| `POST` | `/api/chat` | Send a message, stream the reply |
+| `GET` | `/api/profile/{user_id}` | Everything stored about a user |
+| `PATCH` | `/api/profile/{user_id}` | Overwrite named fields only |
+| `DELETE` | `/api/profile/{user_id}` | Erase the profile and the conversation thread |
+| `GET` | `/health` | Liveness, plus whether the database is reachable |
+
+---
+
+## Tests
+
+```bash
+docker compose exec backend pytest -q
+# 168 passed
+```
+
+They run in about two seconds and cost nothing, because every model in the suite is scripted locally in `backend/tests/fakes.py`. No test reaches a real API.
+
+The ones that matter most are `tests/unit/test_profile_guard.py`, which asserts that a medical condition never reaches storage no matter what the model sends, and `tests/integration/test_policy_and_memory.py`, which asserts that blocked topics never reach the model at all. Both have been mutation-checked: break the code underneath them and they go red.
+
+---
+
+## How it works
+
+```
+POST /api/chat
+  |
+  v
+classify           keyword pass first, then one small model call
+  |                returns { topic, difficulty }
+  |
+  +-- topic blocked --> canned decline, streamed, model never invoked
+  |
+  v
+pick a model       SIMPLE -> fast tier, HARD -> smart tier
+  |
+  v
+LangGraph agent    tools bound, loops up to 5 times
+  |  ^
+  |  |  search_web / get_user_profile / remember_about_user
+  +--+
+  |
+  v
+attach allergen notice, stream tokens
+```
+
+The model chooses its own tool calls. Nothing in the code inspects the user's message and calls a tool on its behalf.
+
+**Three things are enforced in code rather than asked for in a prompt**, because counsel called them non-negotiable and a prompt is a request:
+
+- Blocked topics are caught by a regex pass that runs before any model, so no amount of instruction-shaped text in a message can argue past it.
+- `save_profile` strips medical terms before they reach SQL, and the schema has no column a condition could live in anyway.
+- The allergen notice is computed server-side and rendered by the frontend from a boolean. The model never writes it, cannot reword it, and cannot suppress it.
+
+---
+
+## Layout
+
+```
+backend/app/
+  main.py       FastAPI, SSE streaming, the five routes
+  graph.py      the LangGraph agent and the classify-then-route gate
+  policy.py     keyword layer, classifier, medical denylist, allergen rule
+  profile.py    the three memory tiers and the write guard
+  tools.py      the three tools the model may call
+  llm.py        the only file that names a model provider
+  prompts.py    the persona, as a real artifact with worked examples
+  db.py         the only file that touches storage
+  config.py     environment settings
+
+frontend/src/   React, deliberately unstyled pending a design
+
+docs/           PRD, build checklist, architecture diagrams, the original brief
+brief/          the four stakeholder artifacts this was scoped from
+```
+
+---
+
+## What it will not do
+
+It declines medical and dietary questions, and it will not rule on whether food is safe to eat. Both are hard limits from counsel, and both decline warmly with an offer of what it can help with instead rather than refusing flat.
+
+It is generous about what counts as food. Wine, equipment, hosting, restaurants and technique are all in scope.
+
+Known gaps, including the ones a reviewer is most likely to find, are written up in [TRADEOFFS.md](TRADEOFFS.md).
