@@ -71,6 +71,15 @@ NO_PROFILE = """\
 You know nothing about this user yet. Assume no equipment and no pantry beyond
 the obvious, and learn as you go."""
 
+# Storage is down and an empty profile is indistinguishable from a new user, so
+# the model is told which one it is. Answering normally while quietly implying it
+# remembers nothing about a returning user is the failure mode worth avoiding.
+MEMORY_UNAVAILABLE = """\
+Your memory is offline this turn, so you cannot see anything they have told you
+before and nothing you save will stick. Answer the question anyway. If what they
+asked depends on knowing them, say in one short line that you can't reach your
+notes right now and ask for what you need."""
+
 # Copy for the three blocked topics. Rendered as ordinary assistant messages by
 # the policy layer, never as errors: the ask was a friend with limits, not a
 # narc. Each one hands back something it can still do.

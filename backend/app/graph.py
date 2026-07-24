@@ -18,7 +18,7 @@ from langgraph.prebuilt import ToolNode
 from app import llm, policy
 from app import profile as user_profile
 from app.config import get_settings
-from app.prompts import system_prompt
+from app.prompts import MEMORY_UNAVAILABLE, system_prompt
 from app.tools import ALL_TOOLS
 
 log = logging.getLogger(__name__)
@@ -91,11 +91,15 @@ async def prepare(message: str, user_id: str) -> tuple[ChatState, str]:
     if verdict.topic != "OK":
         return {}, verdict.topic
 
-    stored = await user_profile.get_profile(user_id)
+    stored, memory_ok = await user_profile.load(user_id)
+    # A dead database and a first-time user both read as empty. Passing that
+    # distinction through means the reply says memory is down instead of
+    # confidently behaving as though the user had never said anything.
+    profile_text = MEMORY_UNAVAILABLE if not memory_ok else user_profile.profile_to_prompt(stored)
     tier = "smart" if verdict.difficulty == "HARD" else "fast"
     state: ChatState = {
         "messages": [
-            SystemMessage(system_prompt(user_profile.profile_to_prompt(stored))),
+            SystemMessage(system_prompt(profile_text)),
             HumanMessage(message),
         ],
         "tier": tier,
