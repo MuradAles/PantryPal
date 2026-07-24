@@ -39,11 +39,11 @@ export default function Composer({ disabled, onSend, onStop }) {
         onKeyDown={handleKeyDown}
       />
       {disabled ? (
-        <button type="button" onClick={onStop}>
+        <button type="button" className="composer-stop" onClick={onStop}>
           Stop
         </button>
       ) : (
-        <button type="submit" disabled={!draft.trim()}>
+        <button type="submit" className="composer-send" disabled={!draft.trim()}>
           Send
         </button>
       )}
