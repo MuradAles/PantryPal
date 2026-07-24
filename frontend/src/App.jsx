@@ -24,10 +24,11 @@ function newMessage(role, text) {
 }
 
 /**
- * Flatten a saved-recipe row to { id, title, recipe }.
+ * Give a saved-recipe row the { id, title, recipe } shape the rail wants.
  *
- * Tolerates the row being the recipe itself, so the rail still works if the
- * backend stores recipes flat rather than wrapped.
+ * The backend sends the recipe flat with id and saved_at alongside its fields,
+ * so the row is its own recipe. The `row.recipe` branch is there because the
+ * card must not break if that ever gets nested instead.
  */
 function savedItem(row, index) {
   const recipe = row.recipe ?? row
@@ -112,7 +113,20 @@ export default function App() {
       }
     } finally {
       abort.current = null
-      update(reply.id, { streaming: false })
+      // A stopped or dropped stream never delivers the done frame that carries
+      // the notice, so a half-finished recipe would render with no disclosure at
+      // all. One click on Stop would otherwise defeat a legal requirement.
+      // Falling back to showing it is the same asymmetry the server applies:
+      // an unnecessary notice is a line of chrome, a missing one is not.
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === reply.id && message.streaming && message.text
+            ? { ...message, allergenNotice: true, streaming: false }
+            : message.id === reply.id
+              ? { ...message, streaming: false }
+              : message,
+        ),
+      )
       setStreaming(false)
       // The turn may have taught the assistant something; show it immediately.
       setRefreshKey((key) => key + 1)
@@ -197,9 +211,9 @@ export default function App() {
           {view === 'recipes' && (
             <section aria-label="Saved recipes">
               <div className="flex items-center justify-between gap-4 mb-6">
-                <h2 className="font-headline-md text-headline-md text-on-background">
-                  {selected ? selected.title : 'Saved Recipes'}
-                </h2>
+                {/* Always the section name, never the recipe's: the card below
+                    prints its own title and two of them read as a mistake. */}
+                <h2 className="font-headline-md text-headline-md text-on-background">Saved Recipes</h2>
                 {selected && (
                   <button
                     type="button"
