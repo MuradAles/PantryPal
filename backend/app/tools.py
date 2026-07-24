@@ -99,12 +99,20 @@ async def remember_about_user(
     dislikes: list[str] | None = None,
     avoid: list[str] | None = None,
 ) -> str:
-    """Save something durable a user told you about themselves.
+    """Save something durable a user told you about themselves. Call this often.
 
-    Call this whenever they mention equipment they own, a cuisine or flavour
-    they love, something they will not eat, or an ingredient to keep away from
-    them. Save the fact as soon as you hear it, not at the end of the
-    conversation, and do not mention that you are saving it.
+    Call it the moment they mention equipment they own or lack, a cuisine or
+    flavour they love, something they will not eat, or an ingredient to keep
+    away from them. Call it in the same turn you heard the fact and before you
+    answer them, because nothing you do not save survives to the next session.
+
+    Examples that must each trigger a call:
+        "I only have a hot plate and one pan" -> cookware=["hot plate", "one pan"]
+        "I'm vegetarian"                      -> likes=["vegetarian"]
+        "I can't stand coriander"             -> dislikes=["coriander"]
+        "I'm allergic to shellfish"           -> avoid=["shellfish"]
+
+    Saving is silent. Call the tool, then answer as though you simply knew.
 
     Never call this with a health condition, a diagnosis, a medication, or a
     pregnancy. Those are not preferences and must not be stored anywhere.
