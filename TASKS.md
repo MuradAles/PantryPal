@@ -38,12 +38,14 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 2 — Talking to Gemini
 
-- [ ] `backend/app/llm.py` — `get_model(tier)` returning a LangChain chat model. The only file that names a provider.
-- [ ] `backend/app/prompts.py` — the persona from `PRD.md` §6, with few-shot examples
-- [ ] `POST /api/chat` — takes `{user_id, message}`, calls the model, streams tokens over SSE
-- [ ] Request validation: reject empty and whitespace-only messages with 422
+- [x] `backend/app/llm.py` — `get_model(tier)` returning a LangChain chat model. The only file that names a provider.
+- [x] `backend/app/prompts.py` — the persona from `PRD.md` §6, with few-shot examples
+- [x] `POST /api/chat` — takes `{user_id, message}`, calls the model, streams tokens over SSE
+- [x] Request validation: reject empty and whitespace-only messages with 422
 
 **Done when:** `curl -N` against the chat endpoint shows text arriving progressively, not in one block.
+
+**Verified:** 7 token events from +4.13s to +5.47s, ~200ms apart, then one done event. Progressive, not one block.
 
 **Watch for:** buffering. If tokens arrive all at once, the SSE response headers or the proxy config are wrong, not the model.
 
@@ -51,11 +53,11 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 3 — The agent and its first tool
 
-- [ ] `backend/app/tools.py` — `search_web(query)` as a LangChain tool. Write the docstring carefully; it's what the model reads to decide when to call it.
-- [ ] `backend/app/graph.py` — `build_graph()`, agent node with tools bound, conditional edge back to itself for the tool loop
-- [ ] Hard cap the loop at 5 iterations
-- [ ] Wire the graph into `/api/chat`
-- [ ] Search failure is caught — the agent continues without it
+- [x] `backend/app/tools.py` — `search_web(query)` as a LangChain tool. Write the docstring carefully; it's what the model reads to decide when to call it.
+- [x] `backend/app/graph.py` — `build_graph()`, agent node with tools bound, conditional edge back to itself for the tool loop
+- [x] Hard cap the loop at 5 iterations
+- [x] Wire the graph into `/api/chat`
+- [x] Search failure is caught — the agent continues without it
 
 **Done when:** asking something the model can't know from training produces a visible search call and an answer citing it.
 

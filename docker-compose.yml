@@ -9,6 +9,11 @@ services:
       - "8000:8000"
     volumes:
       - pantrypal-data:/data
+      # Source is mounted over the copy baked into the image so edits take effect
+      # without a rebuild. The image still contains a full copy, so `docker build`
+      # alone produces a working container for anyone cloning this repo.
+      - ./backend/app:/srv/app
+      - ./backend/tests:/srv/tests
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 5s
