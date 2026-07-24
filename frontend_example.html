@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PantryPal - Spicy Thai Red Curry</title>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@6..72,400;6..72,600;6..72,700&amp;family=Hanken+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#dbdad6",
+                    "on-background": "#1b1c1a",
+                    "on-primary-fixed": "#390c00",
+                    "surface-variant": "#e4e2de",
+                    "secondary": "#506354",
+                    "on-surface": "#1b1c1a",
+                    "on-secondary-fixed-variant": "#394b3d",
+                    "surface-container": "#efeeea",
+                    "on-primary-fixed-variant": "#7d2c0d",
+                    "on-secondary-container": "#546758",
+                    "tertiary-fixed": "#90f2f7",
+                    "primary-fixed-dim": "#ffb59d",
+                    "tertiary": "#00676a",
+                    "surface-container-high": "#eae8e4",
+                    "primary-fixed": "#ffdbd0",
+                    "surface-bright": "#fbf9f5",
+                    "inverse-surface": "#30312e",
+                    "on-tertiary-fixed-variant": "#004f52",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#008286",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#b7ccb9",
+                    "primary": "#9a4121",
+                    "on-surface-variant": "#56423c",
+                    "background": "#fbf9f5",
+                    "surface": "#fbf9f5",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-primary": "#ffb59d",
+                    "on-tertiary-container": "#f3ffff",
+                    "secondary-fixed": "#d3e8d5",
+                    "on-tertiary-fixed": "#002021",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-primary-container": "#fffbff",
+                    "tertiary-fixed-dim": "#73d6db",
+                    "surface-tint": "#9d4323",
+                    "secondary-container": "#d0e5d2",
+                    "inverse-on-surface": "#f2f0ed",
+                    "outline": "#89726b",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "outline-variant": "#dcc1b8",
+                    "on-secondary-fixed": "#0e1f13",
+                    "surface-container-highest": "#e4e2de",
+                    "primary-container": "#b95836",
+                    "surface-container-low": "#f5f3ef"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-padding-desktop": "40px",
+                    "base": "8px",
+                    "max-width-content": "720px",
+                    "inline-gap": "12px",
+                    "content-stack": "24px",
+                    "section-gap": "48px",
+                    "container-padding-mobile": "20px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Hanken Grotesk"],
+                    "display-lg-mobile": ["Literata"],
+                    "ui-main": ["Hanken Grotesk"],
+                    "headline-md": ["Literata"],
+                    "display-lg": ["Literata"],
+                    "helper-text": ["Hanken Grotesk"],
+                    "recipe-body": ["Literata"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "700"}],
+                    "ui-main": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "helper-text": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "recipe-body": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fbf9f5;
+            color: #1b1c1a;
+            -webkit-font-smoothing: antialiased;
+        }
+        .recipe-card-shadow {
+            box-shadow: 0px 4px 20px rgba(45, 41, 38, 0.05);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-ui-main text-ui-main">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline fixed full-width top-0 z-50 flex justify-between items-center w-full px-container-padding-mobile md:px-container-padding-desktop h-16">
+<div class="flex items-center gap-4">
+<span class="text-headline-md font-headline-md text-primary dark:text-primary-fixed-dim">PantryPal</span>
+</div>
+<div class="hidden md:flex gap-8 items-center h-full">
+<a class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors px-2 py-1 rounded" href="#">Home</a>
+<a class="text-primary dark:text-primary-fixed-dim font-bold transition-colors px-2 py-1 rounded" href="#">Recipes</a>
+<a class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors px-2 py-1 rounded" href="#">Groceries</a>
+<a class="text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors px-2 py-1 rounded" href="#">Favorites</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-low p-2 rounded-full transition-colors">psychology_alt</button>
+<img class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="A warm and inviting portrait-style icon of a traditional terracotta cooking pot with light steam rising from it, set against a creamy white background that matches a high-end minimalist cookbook aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUO3MPmRMH3IRaCz5cyw0EASd6Og0H7cO65LY-LQ1mf-JrVgRR7zkhyJbPlywo64ZL17fZLBVEj_URjTVN1_nc-Oy2OUCgykrDhmc6Xhwbl8meyW4utZmji3LSDI1M9NP0L0SZp5iuSSAROuaeY8uG6aX7lrYdWppx9KJLBSl5pF4dhp2ysu_CrITspMeI-oZf1h9dcV5jNQbH-UrjcZUuN4Bbui9EK-bcankyAqvMc3_0353UigYO88L0mp_ybejbVQWIGAdzoENZ"/>
+</div>
+</header>
+<!-- SideNavBar (Desktop Only) -->
+<aside class="hidden lg:flex fixed left-0 top-16 h-[calc(100vh-64px)] w-72 bg-surface-container-low dark:bg-surface-container-highest border-r border-outline-variant flex-col p-base">
+<div class="px-4 py-6 mb-4">
+<p class="font-headline-md text-headline-md text-primary dark:text-primary-fixed-dim">Chat History</p>
+<p class="text-helper-text text-on-surface-variant">Your warm AI cooking companion</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg font-bold transition-all duration-200 translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="restaurant_menu">restaurant_menu</span>
+<span>Thai Red Curry</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-variant rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Chicken Adobo Prep</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-variant rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Quick Lunch Ideas</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+<span>Preferences</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="mt-16 mb-20 lg:ml-72 lg:mr-80 px-container-padding-mobile md:px-container-padding-desktop flex flex-col items-center">
+<div class="max-w-max-width-content w-full py-12">
+<!-- Message Flow Mockup -->
+<div class="flex flex-col space-y-8 mb-12">
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="bg-primary-container text-on-primary-container px-6 py-4 rounded-3xl rounded-tr-none max-w-[80%] shadow-sm">
+<p class="font-ui-main">Hey PantryPal, can you give me a really detailed recipe for a Spicy Thai Red Curry? I have some chicken and bamboo shoots in the pantry.</p>
+</div>
+</div>
+<!-- Assistant Response Start -->
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-4 text-primary">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+<span class="font-label-caps text-label-caps">PANTRYPAL ASSISTANT</span>
+</div>
+<p class="font-recipe-body text-recipe-body mb-8 leading-relaxed">Of course! That sounds like a wonderful, warming dinner. Thai Red Curry is all about the balance of heat, creaminess, and aromatic depth. Here is a curated recipe optimized for what's in your pantry.</p>
+<!-- Recipe Card Component -->
+<article class="recipe-card-shadow bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/30">
+<!-- Hero Image Placeholder -->
+<div class="w-full h-80 rounded-lg overflow-hidden mb-8">
+<img class="w-full h-full object-cover" data-alt="A vibrant and appetizing close-up of Spicy Thai Red Curry in a shallow rustic ceramic bowl. The rich, orange-red coconut sauce is garnished with fresh Thai basil leaves, slivers of red chili, and a drizzle of coconut cream. High-end editorial food photography style with soft natural window lighting, warm wood table background, and shallow depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNLoBSMygH5KIthHleBD5Kgc6Sr-eVluBKnrGJnjbN_Oz5eIWSvhk339TQeVmA8lfbafKfbk9ZUP5gsE0d0nnpsnPHMUbLT_zQFJ0BPbqIQkk5nPrNpoVdJbuctKmIR9JUHyhb5oeUmYwUUIOI4vrtrS-TYtKf0D4o0N_O_WQJjUtxuTTnzksBkkU0nPNtJ8pzUg8LtkUmvxOFWxN7EMt4ZT0gcJuF9_ctZoXL436R8gV5023tqGGuieYdMezbk5iIcvV1spn_mi7t"/>
+</div>
+<!-- Title -->
+<header class="mb-10 text-center">
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-2">Authentic Spicy Thai Red Curry</h1>
+<div class="flex justify-center gap-4 text-on-surface-variant font-label-caps text-label-caps uppercase tracking-widest">
+<span>35 MINS</span>
+<span>•</span>
+<span>EASY</span>
+<span>•</span>
+<span>SERVES 4</span>
+</div>
+</header>
+<!-- Ingredients Section -->
+<section class="mb-12">
+<h2 class="font-headline-md text-headline-md text-primary mb-6 border-b border-outline-variant pb-2">Ingredients</h2>
+<ul class="grid md:grid-cols-2 gap-y-3 gap-x-8 font-ui-main text-on-surface">
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 500g Chicken breast or thighs, thinly sliced</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 3 tbsp Thai Red Curry Paste (Maesri or Mae Ploy)</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 400ml Full-fat Coconut Milk</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 150g Bamboo shoots, sliced &amp; drained</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 2 tbsp Fish Sauce (Nam Pla)</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 1 tbsp Palm Sugar (or brown sugar)</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 4-5 Kaffir Lime leaves, torn</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 1/2 cup Fresh Thai Basil leaves</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 2 Red bird's eye chilies, sliced (optional)</li>
+<li class="flex items-start gap-3"><span class="text-primary font-bold">•</span> 1 tbsp Neutral oil</li>
+</ul>
+</section>
+<!-- Instructions Section -->
+<section class="mb-12">
+<h2 class="font-headline-md text-headline-md text-primary mb-6 border-b border-outline-variant pb-2">Preparation</h2>
+<div class="space-y-8">
+<div class="flex gap-6">
+<span class="font-display-lg text-primary/20 shrink-0 select-none">01</span>
+<p class="font-recipe-body text-recipe-body leading-relaxed pt-2">Heat the oil in a large wok or deep skillet over medium heat. Add the red curry paste and fry for 2 minutes until fragrant and the oil starts to separate. This "cracking" of the paste is essential for deep flavor.</p>
+</div>
+<div class="flex gap-6">
+<span class="font-display-lg text-primary/20 shrink-0 select-none">02</span>
+<p class="font-recipe-body text-recipe-body leading-relaxed pt-2">Slowly pour in 1/2 cup of the coconut milk. Stir constantly until it incorporates with the paste and turns into a vibrant, thick red sauce. Add the sliced chicken and cook for 3-4 minutes until the outside is no longer pink.</p>
+</div>
+<div class="flex gap-6">
+<span class="font-display-lg text-primary/20 shrink-0 select-none">03</span>
+<p class="font-recipe-body text-recipe-body leading-relaxed pt-2">Add the remaining coconut milk and the bamboo shoots. Bring to a gentle simmer. Do not let it boil vigorously, as the coconut milk might split.</p>
+</div>
+<div class="flex gap-6">
+<span class="font-display-lg text-primary/20 shrink-0 select-none">04</span>
+<p class="font-recipe-body text-recipe-body leading-relaxed pt-2">Season with fish sauce and palm sugar. Add the torn kaffir lime leaves. Simmer for another 5-7 minutes until the chicken is tender and fully cooked.</p>
+</div>
+<div class="flex gap-6">
+<span class="font-display-lg text-primary/20 shrink-0 select-none">05</span>
+<p class="font-recipe-body text-recipe-body leading-relaxed pt-2">Taste the sauce. It should be spicy, salty, and slightly sweet. Adjust seasoning if needed. Remove from heat and stir in the Thai basil and fresh chilies. Serve immediately over hot jasmine rice.</p>
+</div>
+</div>
+</section>
+<!-- Allergen Notice -->
+<div class="bg-secondary-container/30 border border-secondary/20 rounded-lg p-4 flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-secondary" data-icon="info">info</span>
+<span class="text-helper-text text-on-secondary-fixed-variant">Allergen Notice: Contains Fish Sauce. Substitute with light soy sauce or salt for a vegetarian-friendly alternative.</span>
+</div>
+<!-- Source Links -->
+<footer class="border-t border-outline-variant pt-6">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-4 uppercase tracking-wider">Sources &amp; Inspiration</p>
+<div class="flex flex-wrap gap-4">
+<a class="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low rounded-full hover:bg-surface-container transition-colors border border-outline-variant/20" href="#">
+<span class="font-label-caps text-label-caps">THAI-KITCHEN.COM</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="open_in_new">open_in_new</span>
+</a>
+<a class="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low rounded-full hover:bg-surface-container transition-colors border border-outline-variant/20" href="#">
+<span class="font-label-caps text-label-caps">MARION'S KITCHEN</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="open_in_new">open_in_new</span>
+</a>
+<a class="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low rounded-full hover:bg-surface-container transition-colors border border-outline-variant/20" href="#">
+<span class="font-label-caps text-label-caps">HOT THAI KITCHEN</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</footer>
+</article>
+</div>
+</div>
+</div>
+</main>
+<!-- "What I know about you" Panel (Right Side Desktop) -->
+<aside class="hidden xl:flex fixed right-0 top-16 h-[calc(100vh-64px)] w-80 bg-surface border-l border-outline-variant flex-col p-6 overflow-y-auto">
+<div class="mb-8">
+<h3 class="font-headline-md text-headline-md text-on-background mb-2">Memory Bank</h3>
+<p class="text-helper-text text-on-surface-variant italic">"The context that makes our conversations better."</p>
+</div>
+<div class="space-y-6">
+<section>
+<h4 class="font-label-caps text-label-caps text-primary uppercase mb-3">Dietary Preferences</h4>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold border border-secondary/20">Low-Carb</span>
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold border border-secondary/20">Spicy Lover</span>
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold border border-secondary/20">No Cilantro</span>
+</div>
+</section>
+<section>
+<h4 class="font-label-caps text-label-caps text-primary uppercase mb-3">Available Pantry</h4>
+<div class="bg-surface-container-low rounded-lg p-3 space-y-2">
+<div class="flex justify-between items-center text-sm border-b border-outline-variant/30 pb-1">
+<span>Bamboo Shoots</span>
+<span class="text-on-surface-variant">1 can</span>
+</div>
+<div class="flex justify-between items-center text-sm border-b border-outline-variant/30 pb-1">
+<span>Coconut Milk</span>
+<span class="text-on-surface-variant">2 cans</span>
+</div>
+<div class="flex justify-between items-center text-sm border-b border-outline-variant/30 pb-1">
+<span>Jasmine Rice</span>
+<span class="text-on-surface-variant">2kg</span>
+</div>
+<div class="flex justify-between items-center text-sm border-b border-outline-variant/30 pb-1">
+<span>Red Curry Paste</span>
+<span class="text-on-surface-variant">1 jar</span>
+</div>
+</div>
+</section>
+<section>
+<h4 class="font-label-caps text-label-caps text-primary uppercase mb-3">Recent Successes</h4>
+<div class="text-sm text-on-surface-variant space-y-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span>Loved the 15-min Pad Thai</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span>Perfected Pan-Seared Salmon</span>
+</div>
+</div>
+</section>
+</div>
+<button class="mt-8 w-full py-2 border border-outline text-on-surface-variant rounded-lg font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
+            UPDATE PROFILE
+        </button>
+</aside>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center h-16 bg-surface border-t border-outline-variant px-4 pb-safe shadow-lg">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="chat">chat</span>
+<span class="font-label-caps text-label-caps uppercase text-[10px]">Chat</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold hover:opacity-80 transition-opacity scale-90 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="restaurant_menu">restaurant_menu</span>
+<span class="font-label-caps text-label-caps uppercase text-[10px]">Recipes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-caps text-label-caps uppercase text-[10px]">Pantry</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:opacity-80 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-caps text-label-caps uppercase text-[10px]">Profile</span>
+</a>
+</nav>
+<!-- FAB for New Interaction -->
+<button class="fixed bottom-20 right-6 md:bottom-8 md:right-8 bg-primary text-on-primary w-14 h-14 rounded-full shadow-xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-40">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+</button>
+<script>
+        // Simple micro-interaction for active state scaling
+        document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('mousedown', () => {
+                el.classList.add('scale-95', 'opacity-80');
+            });
+            el.addEventListener('mouseup', () => {
+                el.classList.remove('scale-95', 'opacity-80');
+            });
+            el.addEventListener('mouseleave', () => {
+                el.classList.remove('scale-95', 'opacity-80');
+            });
+        });
+    </script>
+</body></html>

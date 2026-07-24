@@ -35,6 +35,9 @@ services:
       # bind mount keeps the old inode when an editor rewrites the file and the
       # container then reads a stale copy. The anonymous volume keeps the
       # node_modules installed in the image from being hidden by the host mount.
+      # Compose carries that anonymous volume across a recreate, so after a
+      # dependency change `up --build` alone leaves the old modules in place:
+      # run `docker compose rm -sfv frontend` first to drop it.
       - ./frontend:/srv
       - /srv/node_modules
     depends_on:
