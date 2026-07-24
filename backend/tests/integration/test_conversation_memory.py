@@ -179,6 +179,61 @@ async def stored_checkpoint_rows(thread_id: str) -> int:
     return total
 
 
+async def test_a_new_chat_forgets_the_thread_but_not_the_user(
+    client, patch_model, scripted_model
+):
+    """The whole point of the button: a clean thread, with the memory intact.
+
+    The failures worth guarding are the two tempting shortcuts — reusing the
+    delete-everything route, or clearing the list only in the browser. The first
+    forgets their kitchen, the second forgets nothing at all and lets the model
+    answer the next message with the old conversation still in front of it.
+    """
+    model = patch_model(
+        scripted_model(ai("Bagna cauda."), ai("Still bagna cauda."), ai("Fresh start."))
+    )
+    await collect_sse(client, {"user_id": "murad", "message": "artichokes and anchovies"})
+    await collect_sse(client, {"user_id": "murad", "message": "anything else"})
+    await client.patch("/api/profile/murad", json={"cookware": ["one pan"]})
+    await client.post("/api/recipes/murad", json={"title": "Kept", "steps": ["Stir."]})
+    assert await stored_checkpoint_rows("murad") > 0, "nothing was stored to clear"
+
+    assert (await client.delete("/api/chat/murad")).status_code == 204
+
+    assert await stored_checkpoint_rows("murad") == 0, "the transcript survived"
+    # Everything the assistant knows about them is untouched.
+    assert (await client.get("/api/profile/murad")).json()["cookware"] == ["one pan"]
+    assert [r["title"] for r in (await client.get("/api/recipes/murad")).json()] == ["Kept"]
+
+    # And the next turn genuinely starts clean, asserted on what the model was
+    # sent rather than on what the UI shows.
+    await collect_sse(client, {"user_id": "murad", "message": "what now"})
+    sent = [m.content for m in model.calls[-1]]
+    assert not any("artichokes and anchovies" in c for c in sent), "the old turn came back"
+    # The profile still reaches the prompt, so it is a new chat and not a new user.
+    assert "one pan" in model.calls[-1][0].content
+
+
+async def test_a_new_chat_that_cannot_finish_says_so(client, dead_storage):
+    """A 204 the user cannot rely on means the next reply surprises them with old context."""
+    response = await client.delete("/api/chat/murad")
+
+    assert response.status_code == 503
+    assert "try again" in response.json()["detail"].lower()
+
+
+async def test_a_new_chat_is_scoped_to_one_user(client, patch_model, scripted_model):
+    """One person clearing their thread must not clear anyone else's."""
+    patch_model(scripted_model(ai("One."), ai("Two.")))
+    await collect_sse(client, {"user_id": "murad", "message": "artichokes"})
+    await collect_sse(client, {"user_id": "someone-else", "message": "anchovies"})
+
+    assert (await client.delete("/api/chat/murad")).status_code == 204
+
+    assert await stored_checkpoint_rows("murad") == 0
+    assert await stored_checkpoint_rows("someone-else") > 0
+
+
 async def test_delete_leaves_no_row_behind_in_the_checkpoint_tables(
     client, patch_model, scripted_model
 ):
