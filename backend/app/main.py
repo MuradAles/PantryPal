@@ -218,27 +218,6 @@ async def erase_profile(user_id: str) -> None:
         )
 
 
-@app.delete("/api/chat/{user_id}", status_code=204)
-async def new_chat(user_id: str) -> None:
-    """Start a fresh conversation, keeping everything the assistant knows about the user.
-
-    Deliberately narrower than erase_profile above. This drops the transcript and
-    nothing else: the profile and the saved recipes survive, so a new chat still
-    knows what pans they own and what they will not eat. Forgetting the kitchen
-    every time someone wanted a clean thread would undo the whole memory feature.
-
-    Reported rather than swallowed. Clearing the thread only in the browser would
-    look identical to the user and be a lie — history lives in the checkpointer,
-    keyed on the user, so the model would answer the next message with the old
-    conversation still in front of it.
-    """
-    if not await graph.forget_conversation(user_id):
-        raise HTTPException(
-            status_code=503,
-            detail="Could not start a new chat right now. Try again.",
-        )
-
-
 @app.post("/api/recipes/{user_id}", status_code=201)
 async def save_recipe(user_id: str, recipe: Recipe) -> SavedRecipe:
     """Keep one recipe for a user, returning it with the id it was stored under."""
