@@ -177,14 +177,25 @@ async def get_graph():
     if _checkpointed is not None:
         return _checkpointed
 
-    try:
-        saver = await db.checkpointer()
-    except Exception:
-        log.exception("checkpointer unavailable; this turn has no conversation history")
-        return GRAPH
-    _saver = saver
-    _checkpointed = build_graph(saver)
-    return _checkpointed
+    async with _build_lock:
+        # Re-checked inside the lock: the coroutine that held it while we waited
+        # has almost certainly finished the build, and rebuilding would leak the
+        # connection it just made.
+        if _checkpointed is not None:
+            return _checkpointed
+        try:
+            saver = await db.checkpointer()
+        except Exception:
+            # Same rule the profile store follows: memory is a feature, not a
+            # dependency. Not cached, so a transient outage costs the conversation
+            # its history for one turn rather than until the next deploy.
+            log.exception("checkpointer unavailable; this turn has no conversation history")
+            return GRAPH
+        # Published only once both are ready, so no caller can see a compiled
+        # graph paired with a _saver that is still None.
+        _saver = saver
+        _checkpointed = build_graph(saver)
+        return _checkpointed
 
 
 async def forget_conversation(user_id: str) -> bool:

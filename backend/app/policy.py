@@ -32,20 +32,45 @@ Difficulty = Literal["SIMPLE", "HARD"]
 # Conditions the product must never store or reason about. Used both to route a
 # message to the MEDICAL decline and, more importantly, to strip values on the
 # way into the profile store. See profile.save_profile.
+#
+# This is a denylist, so its coverage is finite by construction and this list
+# will always be behind the ways people describe themselves. It is the first of
+# two layers, not the guarantee: the schema has no column a condition could live
+# in, so a phrase that slips past here still has nowhere to land as a condition.
+# See TRADEOFFS.md.
+#
+# Two rules when adding to it. A term has to be a condition, a treatment or a
+# diagnosis — never a plain preference, because "vegetarian" and "shellfish" are
+# the memory feature working as designed. And it must not be an ordinary food
+# word: this list also strips profile writes, so a term that matches an
+# ingredient would quietly empty people's profiles.
 MEDICAL_TERMS: frozenset[str] = frozenset(
     {
         "diabetes", "diabetic", "prediabetic", "insulin", "hypoglycemia", "hyperglycemia",
+        "blood sugar", "a1c",
         "pregnant", "pregnancy", "breastfeeding", "nursing",
-        "celiac", "coeliac", "crohn", "colitis", "ibs", "diverticulitis", "gastritis",
+        "celiac", "coeliac", "crohn", "colitis", "ulcerative", "ibs", "ibd",
+        "diverticulitis", "gastritis", "gastric", "gallbladder", "ulcer",
+        # "intolerant"/"intolerance" as a standalone signal, so lactose, gluten,
+        # histamine and every future one are covered without listing each. The
+        # bare ingredient names stay storable, which is what the avoid list is for.
+        "intolerant", "intolerance", "malabsorption",
+        "acid reflux", "reflux", "gerd", "heartburn", "fodmap",
         "hypertension", "blood pressure", "cholesterol", "heart disease", "statin",
+        "triglycerides", "blood thinner", "warfarin", "metformin", "ozempic", "insulin",
         "kidney disease", "renal", "dialysis", "liver disease", "fatty liver",
-        "cancer", "chemo", "chemotherapy", "radiation",
-        "thyroid", "hashimoto", "graves disease",
+        "cancer", "chemo", "chemotherapy", "radiation", "hiv",
+        "thyroid", "hashimoto", "graves disease", "autoimmune", "immunocompromised",
+        "lupus", "arthritis", "endometriosis", "pcos",
         "anemia", "anemic", "osteoporosis", "gout",
+        "epilepsy", "epileptic", "seizure", "migraine", "migraines",
+        "asthma", "asthmatic", "anaphylaxis", "anaphylactic", "epipen",
+        "dementia", "alzheimer",
         "eating disorder", "anorexia", "bulimia",
-        "medication", "prescription", "on meds",
-        "surgery", "post-op", "recovery diet",
-        "cholesterol", "triglycerides", "a1c",
+        "medication", "prescription", "on meds", "antibiotics",
+        # Deliberately not a bare "bypass": "gastric" already catches the
+        # condition, and "bypass the oven" is a thing someone says about cooking.
+        "surgery", "post-op", "recovery diet", "gastric bypass",
     }
 )
 

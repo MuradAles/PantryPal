@@ -108,7 +108,7 @@ That skip is doing more work than it should. Under the shipped `.env`, `MODEL_BA
 
 ## A note on verification
 
-The suite runs in under two seconds and costs no API quota, because every model in it is scripted locally. That is the right default. It is also how two real bugs survived a fully green suite, which is the part of this build I have thought about most.
+189 tests pass in under two seconds and cost no API quota, because every model in the suite is scripted locally. That is the right default. It is also how two real bugs survived a fully green suite, which is the part of this build I have thought about most.
 
 The first: the model was not calling `remember_about_user` at all. The persona told it to save things "quietly," which a small model read as low priority. Scripted models call whatever the script tells them to, so no mocked test could have caught it. One real request did.
 
