@@ -8,9 +8,11 @@ the model gets about when to reach for a tool.
 
 import logging
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langchain_tavily import TavilySearch
 
+from app import profile as user_profile
 from app.config import get_settings
 
 log = logging.getLogger(__name__)
@@ -69,5 +71,63 @@ async def search_web(query: str) -> tuple[str, list[dict]]:
     return text, sources
 
 
+def _user_id(config: RunnableConfig) -> str:
+    """Pull the caller's id out of the run config, never out of the model's args."""
+    # Injected by the graph, invisible to the model. If the model could pass a
+    # user id it could read or overwrite someone else's profile by guessing one.
+    return (config or {}).get("configurable", {}).get("user_id", "")
+
+
+@tool
+async def get_user_profile(config: RunnableConfig) -> str:
+    """Look up what you already know about this user before you answer.
+
+    Worth calling whenever what to suggest depends on them: what equipment they
+    have, what they like, what they will not eat. Check before assuming their
+    kitchen is empty, and before assuming it is well stocked.
+    """
+    profile = await user_profile.get_profile(_user_id(config))
+    rendered = user_profile.profile_to_prompt(profile)
+    return rendered or "Nothing stored about this user yet."
+
+
+@tool
+async def remember_about_user(
+    config: RunnableConfig,
+    cookware: list[str] | None = None,
+    likes: list[str] | None = None,
+    dislikes: list[str] | None = None,
+    avoid: list[str] | None = None,
+) -> str:
+    """Save something durable a user told you about themselves.
+
+    Call this whenever they mention equipment they own, a cuisine or flavour
+    they love, something they will not eat, or an ingredient to keep away from
+    them. Save the fact as soon as you hear it, not at the end of the
+    conversation, and do not mention that you are saving it.
+
+    Never call this with a health condition, a diagnosis, a medication, or a
+    pregnancy. Those are not preferences and must not be stored anywhere.
+
+    Args:
+        cookware: Equipment they own, e.g. ["air fryer", "cast iron pan"].
+        likes: Cuisines or flavours they enjoy, e.g. ["thai", "very spicy"].
+        dislikes: Food they would rather not eat, e.g. ["coriander"].
+        avoid: Ingredients never to suggest, e.g. ["shellfish"]. Use this for
+            allergies, recording only the ingredient itself and nothing about why.
+    """
+    user_id = _user_id(config)
+    if not user_id:
+        log.warning("remember_about_user called with no user id in config")
+        return "Could not save that."
+
+    await user_profile.save_profile(
+        user_id, cookware=cookware, likes=likes, dislikes=dislikes, avoid=avoid
+    )
+    # Deliberately terse. A chatty confirmation tempts the model into telling
+    # the user it took notes, which the persona forbids.
+    return "Saved."
+
+
 # Registered in one place so the graph and any future caller bind the same set.
-ALL_TOOLS = [search_web]
+ALL_TOOLS = [search_web, get_user_profile, remember_about_user]

@@ -55,3 +55,23 @@ async def collect_sse(client: AsyncClient, payload: dict) -> tuple[int, list]:
             return response.status_code, []
         body = "".join([chunk async for chunk in response.aiter_text()])
     return 200, parse_sse(body)
+
+
+@pytest.fixture(autouse=True)
+def keyword_only_classifier(monkeypatch):
+    """Make classify() use the keyword layer alone, with no model call.
+
+    Autouse because the LLM half of the classifier would otherwise consume a
+    response from every test's script, silently shifting which reply the agent
+    sees. The keyword layer is real code, so blocked-topic tests still exercise
+    the production path.
+    """
+    from app import policy
+
+    async def _classify(message: str) -> policy.Classification:
+        blocked = policy.keyword_topic(message)
+        return policy.Classification(
+            topic=blocked or "OK", difficulty="SIMPLE"
+        )
+
+    monkeypatch.setattr(policy, "classify", _classify)

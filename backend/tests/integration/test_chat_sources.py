@@ -68,7 +68,8 @@ async def test_unsearched_answer_carries_no_sources(client, patch_model, scripte
     assert status == 200
     done = [payload for name, payload in events if name == "done"]
     assert done[0]["sources"] == []
-    assert done[0]["allergen_notice"] is False
+    # Every substantive answer carries the notice; see policy.needs_allergen_notice.
+    assert done[0]["allergen_notice"] is True
 
 
 async def test_answer_text_still_streams_with_tools_in_play(

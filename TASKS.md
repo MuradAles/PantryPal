@@ -6,6 +6,24 @@ Build order is deliberate: the system runs at every commit. If time runs out, st
 
 Commit at the end of every phase. The README asks for visible progress.
 
+## Status
+
+| Phase | State |
+|---|---|
+| 0 — Repo setup | done |
+| 1 — Skeleton that runs | done, verified |
+| 2 — Talking to Gemini | done, verified |
+| 3 — Agent + search tool | code done, tests green, **not yet verified against the live API** |
+| 4 — Memory | done, 126 tests green, live check pending |
+| 5 — Legal rules | done, 126 tests green, live check pending |
+| 6 — Robustness | partly done as a side effect of 2 and 3 |
+| 7 — Frontend | not started |
+| 8 — Profile panel | not started |
+| 9 — Tests | 126 green, including the medical write guard (mutation-checked) |
+| 10 — Documentation | not started |
+
+126 tests pass in under a second and cost no API quota — every model in the suite is scripted locally.
+
 ---
 
 ## Phase 0 — Repo setup
@@ -61,19 +79,23 @@ Commit at the end of every phase. The README asks for visible progress.
 
 **Done when:** asking something the model can't know from training produces a visible search call and an answer citing it.
 
+**Not yet done.** The agent, the tool, and the capped loop are built and covered by 10 tests against a scripted model. What has *not* been checked is whether the real Gemini chooses to call `search_web` on its own. That costs 2 API calls and is batched with the phase 4 and 5 verification.
+
+**Fixed here:** `stream_mode="messages"` also emits tool output, so raw search results were leaking into the chat window ahead of the answer. Caught by a test asserting on exact stream content.
+
 **Watch for:** no hardcoded call sequence anywhere. The README requires the model to decide. If there's an `if "recipe" in message: search()`, that's a failed requirement.
 
 ---
 
 ## Phase 4 — Memory
 
-- [ ] `backend/app/profile.py` — `get_profile`, `save_profile`, `delete_profile`, `profile_to_prompt`
-- [ ] `MEDICAL_TERMS` denylist in `policy.py`
-- [ ] **Write guard**: `save_profile` strips medical terms before SQL, logs the rejection, does not raise
-- [ ] Tools `get_user_profile` and `remember_about_user` bound to the agent
-- [ ] Profile injected into the system prompt each turn
-- [ ] LangGraph SQLite checkpointer for conversation state, trimmed to the last 10 turns
-- [ ] `GET`, `PATCH`, `DELETE /api/profile/{user_id}`
+- [x] `backend/app/profile.py` — `get_profile`, `save_profile`, `delete_profile`, `replace_profile`, `profile_to_prompt`
+- [x] `MEDICAL_TERMS` denylist in `policy.py`
+- [x] **Write guard**: `save_profile` strips medical terms before SQL, logs the rejection, does not raise
+- [x] Tools `get_user_profile` and `remember_about_user` bound to the agent
+- [x] Profile injected into the system prompt each turn
+- [ ] LangGraph SQLite checkpointer for conversation state, trimmed to the last 10 turns — **not done**, memory is profile-only so far
+- [x] `GET`, `PATCH`, `DELETE /api/profile/{user_id}`
 
 **Done when:** say "I only have a hot plate and one pan", restart the containers, ask for dinner — it still knows, and doesn't suggest anything needing an oven.
 
@@ -83,12 +105,12 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 5 — Legal rules (not cuttable)
 
-- [ ] `backend/app/policy.py` — `classify(message)` returning `{topic, difficulty}` in one Flash call
-- [ ] `canned_response(topic)` for MEDICAL, FOOD_SAFETY, OFF_TOPIC — warm, offers an alternative, never scolds
-- [ ] Classifier runs before the agent; blocked topics never reach the model
-- [ ] Model routing: SIMPLE → Flash, HARD → Pro
-- [ ] `needs_allergen_notice(text)`; `allergen_notice` on the response contract
-- [ ] Food-adjacent (wine, gear, hosting, restaurants) classifies as OK
+- [x] `backend/app/policy.py` — `classify(message)`, keyword layer first then one classifier call
+- [x] `decline_text(topic)` for MEDICAL, FOOD_SAFETY, OFF_TOPIC — warm, offers an alternative, never scolds
+- [x] Classifier runs before the agent; blocked topics never reach the model
+- [x] Model routing: SIMPLE → fast tier, HARD → smart tier (no Pro on a free key)
+- [x] `needs_allergen_notice(text)`; `allergen_notice` on the response contract
+- [x] Food-adjacent (wine, gear, hosting, restaurants) classifies as OK
 
 **Done when:** all six of these behave correctly —
 
@@ -106,10 +128,14 @@ Commit at the end of every phase. The README asks for visible progress.
 ## Phase 6 — Robustness
 
 - [ ] Every row of `PRD.md` §8 handled
-- [ ] LLM failure → 503 with a clean message, no stack trace to the client
+- [x] LLM failure → 503 with a clean message, no stack trace to the client
+- [x] Long input truncated or 413, never 500
+- [x] Search failure → agent continues unaided
+- [x] Agent tool loop → hard cap at 5, still returns prose
 - [ ] Database down → chat still answers, memory degrades, says so
-- [ ] Long input truncated or 413, never 500
 - [ ] Concurrent writes to one profile don't lose data
+- [ ] Prompt injection at the policy layer (needs phase 5)
+- [ ] Non-English input
 
 **Done when:** nothing in §8 produces a 500 or a stack trace in the response body.
 
@@ -146,17 +172,26 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 9 — Tests
 
-Runs alongside phases 3–8, not after. Owned by the `tester` agent.
+Runs alongside phases 3–8, not after. 69 passing, none spending API quota.
 
-- [ ] Unit: classifier routes each topic, including adversarial phrasings
+Done:
+- [x] Unit: storage encode/decode, including corrupt and non-list JSON
+- [x] Unit: config accepts both `TAVILY_API_KEY` and `TRAVILY_API_KEY`
+- [x] Unit: tools are bound so the model *can* choose; no tool runs when it doesn't ask
+- [x] Unit: runaway tool loop is capped and still produces prose
+- [x] Unit: search failure and missing key degrade instead of crashing
+- [x] Integration: `/api/chat` streams a well-formed contract
+- [x] Integration: sources arrive as objects on the done event
+- [x] Integration: malformed and empty payloads return 4xx
+
+Still to write — the high-stakes ones, landing with phases 4 and 5:
 - [ ] Unit: `save_profile` strips medical terms — "diabetic" never reaches the table
 - [ ] Unit: profile merge deduplicates and preserves existing entries
+- [ ] Unit: classifier routes each topic, including adversarial phrasings
 - [ ] Unit: `needs_allergen_notice` fires on recipes, not on substitution answers
-- [ ] Integration: `/api/chat` streams a well-formed contract
-- [ ] Integration: memory round trip
+- [ ] Integration: memory round trip, surviving a restart
 - [ ] Integration: blocked topics never reach the agent
 - [ ] Integration: `DELETE /api/profile` empties it
-- [ ] Integration: malformed and empty payloads return 4xx
 
 **Done when:** the suite is green and each test has been seen to fail once with the code broken.
 
