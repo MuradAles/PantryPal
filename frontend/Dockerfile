@@ -9,7 +9,7 @@ WORKDIR /srv
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY index.html vite.config.js ./
+COPY index.html vite.config.js tailwind.config.js postcss.config.js ./
 COPY src ./src
 
 EXPOSE 5173
