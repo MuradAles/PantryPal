@@ -14,6 +14,7 @@ from langchain_tavily import TavilySearch
 
 from app import profile as user_profile
 from app.config import get_settings
+from app.schemas import Recipe
 
 log = logging.getLogger(__name__)
 
@@ -137,5 +138,93 @@ async def remember_about_user(
     return "Saved."
 
 
+# One entry is an instruction or an ingredient line, not a paragraph. Past these
+# the model is writing an essay into the card, which the layout cannot show.
+MAX_LINE_CHARS = 400
+MAX_LINES = 40
+
+
+def _clean_lines(values: list[str] | None) -> list[str]:
+    """Normalize a list of recipe lines, dropping blanks and absurd lengths."""
+    out: list[str] = []
+    for raw in values or []:
+        line = " ".join(str(raw).split()).strip()
+        if line and len(line) <= MAX_LINE_CHARS:
+            out.append(line)
+    return out[:MAX_LINES]
+
+
+def _bounded(value, low: int, high: int) -> int | None:
+    """Coerce a model-supplied number into range, or None if it will not fit.
+
+    Dropping one bad field beats losing the card. A model that answers "about 30"
+    or serves=0 has still given a recipe worth showing, and the frontend already
+    renders a missing number as a blank slot rather than a broken one.
+    """
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if low <= number <= high else None
+
+
+@tool(response_format="content_and_artifact")
+async def present_recipe(
+    title: str,
+    steps: list[str],
+    ingredients: list[str] | None = None,
+    time_mins: int | None = None,
+    difficulty: str | None = None,
+    serves: int | None = None,
+) -> tuple[str, dict | None]:
+    """Show a recipe card when you are recommending one specific dish to cook.
+
+    Call this the moment you have settled on a dish and are about to describe how
+    to make it. The card is what the user cooks from: it stays on screen, and
+    they can save it.
+
+    Keep talking normally as well. The card is not your answer — you are. Say why
+    this dish, what to watch for, what you would do differently; the card just
+    carries the numbered version so they are not scrolling back through chat with
+    wet hands. A turn that is only a card reads like a search result.
+
+    Do not call this for a question that has no single dish behind it, for
+    general technique, or for a list of options you are floating.
+
+    Leave a field out when you do not know it. An omitted time is honest; a
+    guessed one sends someone to the shops on bad information.
+
+    Args:
+        title: What the dish is called, e.g. "Carbonara".
+        steps: The method, one instruction per entry, in order.
+        ingredients: What they need, one per entry, with quantities if you have
+            them, e.g. ["200g spaghetti", "2 egg yolks"].
+        time_mins: Total time in minutes, start to plate.
+        difficulty: Exactly one of "easy", "medium", or "hard".
+        serves: How many people it feeds.
+    """
+    name = " ".join(str(title or "").split())[:200]
+    if not name:
+        # A card with no title has nothing to render and nothing to save under.
+        # The model is told plainly so it answers in prose rather than stalls.
+        log.warning("present_recipe called without a title")
+        return "Could not show that card. Answer in prose instead.", None
+
+    grade = str(difficulty or "").strip().lower()
+    recipe = Recipe(
+        title=name,
+        steps=_clean_lines(steps),
+        ingredients=_clean_lines(ingredients),
+        time_mins=_bounded(time_mins, 1, 6000),
+        # Anything the model invents beyond the three words is dropped rather
+        # than raised, on the same reasoning as _bounded.
+        difficulty=grade if grade in ("easy", "medium", "hard") else None,
+        serves=_bounded(serves, 1, 100),
+    )
+    # Terse for the same reason remember_about_user is: a chatty confirmation
+    # tempts the model into announcing the card, which the user can already see.
+    return "Recipe card shown.", recipe.model_dump()
+
+
 # Registered in one place so the graph and any future caller bind the same set.
-ALL_TOOLS = [search_web, get_user_profile, remember_about_user]
+ALL_TOOLS = [search_web, get_user_profile, remember_about_user, present_recipe]

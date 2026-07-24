@@ -73,7 +73,10 @@ async def test_a_save_against_a_dead_database_returns_rather_than_raises(monkeyp
     config.get_settings.cache_clear()
 
     assert await profile.save_profile("u1", likes=["thai"]) == dict(profile.EMPTY)
-    await profile.delete_profile("u1")  # must not raise either
+    # A delete that could not run must report False, not merely decline to raise.
+    # delete_profile is the one function here allowed to fail loudly, because the
+    # route above it turns True into a 204 that tells the user they are erased.
+    assert await profile.delete_profile("u1") is False
     config.get_settings.cache_clear()
 
 

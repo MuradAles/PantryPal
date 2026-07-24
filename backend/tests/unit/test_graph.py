@@ -44,7 +44,12 @@ async def test_tools_are_bound_so_the_model_can_choose(patch_model, scripted_mod
 
     await graph.GRAPH.ainvoke(graph.initial_state("how do I cook a steak"))
 
-    assert model.bound_tools == ["search_web", "get_user_profile", "remember_about_user"]
+    assert model.bound_tools == [
+        "search_web",
+        "get_user_profile",
+        "remember_about_user",
+        "present_recipe",
+    ]
 
 
 async def test_no_tool_runs_when_the_model_does_not_ask(patch_model, scripted_model):
