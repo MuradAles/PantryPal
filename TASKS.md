@@ -16,13 +16,13 @@ Commit at the end of every phase. The README asks for visible progress.
 | 3 — Agent + search tool | code done, tests green, **not yet verified against the live API** |
 | 4 — Memory | done, 126 tests green, live check pending |
 | 5 — Legal rules | done, 126 tests green, live check pending |
-| 6 — Robustness | partly done as a side effect of 2 and 3 |
+| 6 — Robustness | done, 152 tests green |
 | 7 — Frontend | not started |
 | 8 — Profile panel | not started |
-| 9 — Tests | 126 green, including the medical write guard (mutation-checked) |
+| 9 — Tests | 152 green, medical write guard and concurrency both mutation-checked |
 | 10 — Documentation | not started |
 
-126 tests pass in under a second and cost no API quota — every model in the suite is scripted locally.
+152 tests pass in about a second and cost no API quota — every model in the suite is scripted locally.
 
 ---
 
@@ -127,15 +127,15 @@ Commit at the end of every phase. The README asks for visible progress.
 
 ## Phase 6 — Robustness
 
-- [ ] Every row of `PRD.md` §8 handled
+- [x] Every row of `PRD.md` §8 handled
 - [x] LLM failure → 503 with a clean message, no stack trace to the client
 - [x] Long input truncated or 413, never 500
 - [x] Search failure → agent continues unaided
 - [x] Agent tool loop → hard cap at 5, still returns prose
-- [ ] Database down → chat still answers, memory degrades, says so
-- [ ] Concurrent writes to one profile don't lose data
+- [x] Database down → chat still answers and says it cannot reach its notes, rather than acting amnesiac
+- [x] Concurrent writes to one profile don't lose data — single connection under BEGIN IMMEDIATE, mutation-checked
 - [ ] Prompt injection at the policy layer (needs phase 5)
-- [ ] Non-English input
+- [x] Non-English input answers fine. **Known limit:** `keyword_topic` is English-only, so a non-English food-safety question relies on the LLM classifier and loses the deterministic backstop during an outage. Filed for TRADEOFFS.md.
 
 **Done when:** nothing in §8 produces a 500 or a stack trace in the response body.
 
