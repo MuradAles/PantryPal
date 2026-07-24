@@ -163,6 +163,7 @@ There is no authentication, so `user_id` is whatever the client says it is. A de
 
 ```bash
 docker compose exec backend pytest -q
+# 189 passed
 ```
 
 The whole suite runs in under two seconds and costs nothing, because every model in it is scripted locally in `backend/tests/fakes.py`. No test reaches a real API.

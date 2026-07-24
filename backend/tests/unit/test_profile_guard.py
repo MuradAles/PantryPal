@@ -136,5 +136,45 @@ async def test_profile_survives_being_read_before_it_exists(tmp_db):
 
 def test_the_denylist_does_not_catch_ordinary_food_words():
     """A guard that blocks 'rice' would quietly empty every profile."""
-    for harmless in ["rice", "shellfish", "vegetarian", "air fryer", "thai", "spicy", "coriander"]:
-        assert not policy.contains_medical(harmless), harmless
+    harmless = [
+        "rice", "shellfish", "vegetarian", "air fryer", "thai", "spicy", "coriander",
+        # The bare ingredient behind a condition has to stay storable — that is
+        # the entire avoid-list design. "lactose intolerant" is refused;
+        # "lactose" is a filter rule with no diagnosis attached to it.
+        "lactose", "gluten", "dairy", "peanuts", "histamine",
+        # Words the widened list could plausibly have caught by accident.
+        "heart of palm", "artichoke hearts", "bypass the oven", "sugar",
+        "chicken stock", "blood orange", "sweetbreads",
+    ]
+    for value in harmless:
+        assert not policy.contains_medical(value), value
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "lactose intolerant", "lactose intolerance", "gluten intolerant",
+        "acid reflux", "gerd", "heartburn", "epilepsy", "migraine", "lupus",
+        "endometriosis", "gallbladder removed", "no gallbladder", "gastric bypass",
+        "on warfarin", "taking metformin", "on ozempic", "histamine intolerance",
+        "low fodmap", "anaphylaxis", "autoimmune", "hiv", "asthma",
+    ],
+)
+async def test_the_conditions_the_first_denylist_missed_do_not_persist(tmp_db, condition):
+    """Every phrase the reviewer found stored verbatim. Regression coverage.
+
+    The mechanism was always sound; the list was the weak part. These are the
+    high-frequency ways people actually state a condition, and each one reached
+    SQLite and came back out in the profile panel.
+    """
+    from app import db
+
+    await db.init_db()
+
+    await profile.save_profile(
+        "u1", cookware=[condition], likes=[condition], dislikes=[condition], avoid=[condition]
+    )
+    stored = await profile.get_profile("u1")
+
+    everything = sum(stored.values(), [])
+    assert everything == [], f"{condition!r} was stored as {everything}"
