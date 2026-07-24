@@ -6,11 +6,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessageChunk
 from sse_starlette.sse import EventSourceResponse
 
-from app import db, llm
-from app.prompts import system_prompt
+from app import db, graph, llm
 from app.schemas import MAX_MESSAGE_CHARS, ChatDone, ChatRequest
 
 logging.basicConfig(level=logging.INFO)
@@ -42,19 +41,28 @@ def _event(name: str, payload: dict) -> dict:
     return {"event": name, "data": json.dumps(payload)}
 
 
-async def _reply(message: str) -> AsyncIterator[str]:
-    """Stream reply text from the model, one chunk at a time."""
-    # Looked up through the module, not imported by name, so a test can swap
-    # llm.get_model without patching import internals.
-    model = llm.get_model("fast")
-    prompt = [SystemMessage(system_prompt()), HumanMessage(message)]
-    async for chunk in model.astream(prompt):
-        text = llm.text_of(chunk)
-        if text:
-            yield text
+async def _reply(message: str, collected: list[dict]) -> AsyncIterator[str]:
+    """Stream reply text from the agent graph, collecting any sources it used."""
+    # Referenced through the module rather than imported by name so a test can
+    # swap graph.GRAPH without patching import internals.
+    state = graph.initial_state(message)
+    async for mode, payload in graph.GRAPH.astream(
+        state, stream_mode=["messages", "values"]
+    ):
+        if mode == "messages":
+            chunk, _meta = payload
+            # Only the model's own words. This stream also carries ToolMessages,
+            # and without the type check raw search results land in the chat
+            # window ahead of the answer. Tool-calling turns from the model are
+            # filtered by the empty-text check, since they carry no prose.
+            if isinstance(chunk, AIMessageChunk) and (text := llm.text_of(chunk)):
+                yield text
+        elif mode == "values":
+            # Overwritten each pass, so the last one holds the full history.
+            collected[:] = graph.collect_sources(payload.get("messages", []))
 
 
-async def _events(first: str, rest: AsyncIterator[str]) -> AsyncIterator[dict]:
+async def _events(first: str, rest: AsyncIterator[str], sources: list[dict]) -> AsyncIterator[dict]:
     """Emit token events, then exactly one final event carrying the contract."""
     try:
         if first:
@@ -66,7 +74,7 @@ async def _events(first: str, rest: AsyncIterator[str]) -> AsyncIterator[dict]:
         # late can only be reported inside the stream, not as a status code.
         log.exception("model call failed mid-stream")
         yield _event("error", {"detail": "The assistant stopped early. Try again."})
-    yield _event("done", ChatDone().model_dump())
+    yield _event("done", ChatDone(sources=sources).model_dump())
 
 
 @app.post("/api/chat")
@@ -78,9 +86,13 @@ async def chat(request: ChatRequest) -> EventSourceResponse:
             detail=f"Message too long. Keep it under {MAX_MESSAGE_CHARS} characters.",
         )
 
+    # Filled by the graph as it runs; read once the stream is exhausted, which
+    # is why the same list object is handed to both halves.
+    sources: list[dict] = []
+
     # Pull the first chunk before returning, so an unreachable model is a clean
     # 503 instead of an empty 200 the client has to interpret.
-    stream = _reply(request.message)
+    stream = _reply(request.message, sources)
     try:
         first = await anext(stream)
     except StopAsyncIteration:
@@ -89,4 +101,4 @@ async def chat(request: ChatRequest) -> EventSourceResponse:
         log.exception("model call failed before streaming started")
         raise HTTPException(status_code=503, detail=LLM_UNAVAILABLE) from None
 
-    return EventSourceResponse(_events(first, stream))
+    return EventSourceResponse(_events(first, stream, sources))

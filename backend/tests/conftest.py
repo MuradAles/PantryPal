@@ -39,7 +39,9 @@ def patch_model(monkeypatch):
         return model
 
     yield _patch
-    llm.get_model.cache_clear()
+    # Fixture teardown runs before monkeypatch restores the original, so at this
+    # point get_model is still the plain lambda and has no cache to clear.
+    getattr(llm.get_model, "cache_clear", lambda: None)()
 
 
 @pytest.fixture
