@@ -91,3 +91,34 @@ export async function deleteProfile(userId) {
   const response = await fetch(`/api/profile/${encodeURIComponent(userId)}`, { method: 'DELETE' })
   if (!response.ok) throw new Error(await errorDetail(response, 'Could not delete your data.'))
 }
+
+/** The recipes a user has kept, newest first. */
+export async function fetchRecipes(userId) {
+  const response = await fetch(`/api/recipes/${encodeURIComponent(userId)}`)
+  // A 404 is also what a backend without this route answers, and an empty rail
+  // is a better first impression than an error the user cannot act on.
+  if (response.status === 404) return []
+  if (!response.ok) throw new Error(await errorDetail(response, 'Could not load your saved recipes.'))
+  const body = await response.json()
+  return Array.isArray(body) ? body : (body.recipes ?? [])
+}
+
+/** Keep a recipe from a reply. */
+export async function saveRecipe(userId, recipe) {
+  const response = await fetch(`/api/recipes/${encodeURIComponent(userId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipe }),
+  })
+  if (!response.ok) throw new Error(await errorDetail(response, 'Could not save that recipe.'))
+  return response.json()
+}
+
+/** Forget one saved recipe. */
+export async function deleteRecipe(userId, recipeId) {
+  const response = await fetch(
+    `/api/recipes/${encodeURIComponent(userId)}/${encodeURIComponent(recipeId)}`,
+    { method: 'DELETE' },
+  )
+  if (!response.ok) throw new Error(await errorDetail(response, 'Could not delete that recipe.'))
+}

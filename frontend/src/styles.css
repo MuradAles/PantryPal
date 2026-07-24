@@ -1,199 +1,103 @@
-/* Layout and legibility only. The visual design lands separately, so nothing
-   here is meant to survive it — no colour system, no type scale, no branding. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-}
-
-.app {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.columns {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-}
-
-.chat {
-  flex: 2 1 24rem;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.profile {
-  flex: 1 1 14rem;
-  min-width: 0;
-  border: 1px solid #ccc;
-  padding: 0.75rem;
-}
-
-/* Stacked on narrow screens. The profile stays fully rendered rather than
-   collapsing behind a control, which is what keeps the delete action reachable. */
-@media (max-width: 45rem) {
-  .columns {
-    flex-direction: column;
+/* Lifted from the <style> block of frontend_example.html. */
+@layer base {
+  body {
+    background-color: theme('colors.background');
+    color: theme('colors.on-background');
+    -webkit-font-smoothing: antialiased;
   }
-  .chat,
-  .profile {
-    width: 100%;
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
 }
 
-.transcript {
-  height: 60vh;
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  padding: 0.75rem;
+@layer components {
+  .recipe-card-shadow {
+    box-shadow: 0px 4px 20px rgba(45, 41, 38, 0.05);
+  }
+
+  /* Preflight strips list markers and heading sizes, so the markdown the model
+     streams needs them handed back. Scaled to the mockup's recipe-body face so
+     loose prose and the recipe card read as one document. */
+  .prose-recipe > * + * {
+    margin-top: 1rem;
+  }
+
+  .prose-recipe h1,
+  .prose-recipe h2,
+  .prose-recipe h3 {
+    @apply font-headline-md text-headline-md text-primary mt-8 mb-2;
+  }
+
+  .prose-recipe ul,
+  .prose-recipe ol {
+    @apply pl-6 space-y-2;
+  }
+
+  .prose-recipe ul {
+    list-style: disc;
+  }
+
+  .prose-recipe ol {
+    list-style: decimal;
+  }
+
+  .prose-recipe li::marker {
+    @apply text-primary;
+  }
+
+  .prose-recipe strong {
+    @apply font-semibold text-on-background;
+  }
+
+  .prose-recipe a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .prose-recipe code {
+    @apply font-ui-main bg-surface-container px-1 py-0.5 rounded text-[0.9em];
+  }
+
+  .prose-recipe table {
+    @apply w-full text-left border-collapse;
+  }
+
+  .prose-recipe th,
+  .prose-recipe td {
+    @apply border-b border-outline-variant/40 py-2 pr-4 text-ui-main font-ui-main;
+  }
 }
 
-.messages {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+@layer utilities {
+  /* The mockup's bottom nav asks for this; iOS needs it so the bar clears the
+     home indicator. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 
-.message {
-  display: flex;
-  margin-bottom: 1rem;
-}
-
-.message-user {
-  justify-content: flex-end;
-}
-
-.message-assistant {
-  justify-content: flex-start;
-}
-
-.bubble {
-  max-width: 85%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  white-space: pre-wrap;
-}
-
-.message-assistant .bubble {
-  white-space: normal;
-}
-
-.bubble :first-child {
-  margin-top: 0;
-}
-
-.bubble :last-child {
-  margin-bottom: 0;
-}
-
-.allergen-notice,
-.sources {
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  border: 1px solid #bbb;
-  font-size: 0.85rem;
-}
-
-.sources h3 {
-  margin: 0 0 0.25rem;
-  font-size: 0.85rem;
-}
-
-.sources ul {
-  margin: 0;
-  padding-left: 1.1rem;
-}
-
-.generating {
-  font-size: 0.85rem;
-  font-style: italic;
-}
-
-.stream-error {
-  border: 1px solid #a00;
-  color: #a00;
-  padding: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.composer {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.composer textarea {
-  flex: 1;
-  font: inherit;
-  padding: 0.5rem;
-  resize: vertical;
-}
-
-.profile-group {
-  margin-bottom: 1rem;
-}
-
-.profile-group h3 {
-  margin: 0 0 0.25rem;
-  font-size: 0.95rem;
-}
-
-.profile-note,
-.profile-empty {
-  font-size: 0.85rem;
-  color: #555;
-  margin: 0.25rem 0;
-}
-
-.tags {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  border: 1px solid #999;
-  padding: 0.1rem 0.4rem;
-  font-size: 0.85rem;
-}
-
-.tag button {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  line-height: 1;
-  padding: 0;
-}
-
-.profile-delete {
-  border-top: 1px solid #ccc;
-  padding-top: 0.75rem;
-}
-
-.profile-delete p {
-  font-size: 0.85rem;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
