@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import AIMessageChunk
 from sse_starlette.sse import EventSourceResponse
 
@@ -28,6 +29,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PantryPal", version="0.1.0", lifespan=lifespan)
+
+# Open, because the API carries no cookies or auth header: the user id travels in
+# the request body, so there is no ambient credential for another origin to
+# borrow. Restricting to the Vite origin would only break a reviewer who serves
+# the built frontend from a different port.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
