@@ -62,12 +62,16 @@ async def test_chat_still_answers_with_the_database_gone(
 
 
 async def test_profile_reads_and_writes_degrade_instead_of_erroring(client, dead_database):
-    """Every profile route stays a 2xx with storage gone, so the panel still renders."""
+    """Reads and edits stay 2xx with storage gone, so the panel still renders."""
     assert (await client.get("/api/profile/murad")).json() == {
         "cookware": [], "likes": [], "dislikes": [], "avoid": []
     }
     assert (await client.patch("/api/profile/murad", json={"likes": ["thai"]})).status_code == 200
-    assert (await client.delete("/api/profile/murad")).status_code == 204
+
+    # Deletion is the exception, and deliberately so. Degrading a read to empty
+    # costs the user a suggestion; degrading a deletion to a cheerful 204 tells
+    # them they were forgotten when they were not. See SPEC R22.
+    assert (await client.delete("/api/profile/murad")).status_code == 503
 
 
 @pytest.mark.parametrize(
