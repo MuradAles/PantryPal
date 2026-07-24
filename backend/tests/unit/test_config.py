@@ -99,10 +99,23 @@ def test_no_default_model_is_a_pro_tier():
     assert [t for t in tiers if "-pro" in t] == []
 
 
-def test_model_tiers_are_three_distinct_ids():
+def test_routing_has_something_to_route_between():
+    """The fast and smart tiers must differ or the routing is decoration.
+
+    Originally asserted three distinct ids. That is now wrong: the deployment
+    runs two models on purpose, with the classifier sharing the cheap tier. What
+    actually has to hold is that a hard question reaches a stronger model than a
+    simple one — if fast and smart are equal, the cost/quality tradeoff the
+    product was asked for silently does nothing.
+    """
     settings = build()
-    tiers = [settings.model_classifier, settings.model_fast, settings.model_smart]
-    assert len(set(tiers)) == 3
+    assert settings.model_fast != settings.model_smart
+
+
+def test_the_backup_is_a_different_model_from_the_primary():
+    """Free-tier daily caps are per model id, so a same-id backup buys nothing."""
+    settings = build()
+    assert settings.model_backup != settings.model_smart
 
 
 def test_model_ids_are_env_overridable(monkeypatch):

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Every Pro tier is quota-0 on a free AI Studio key (verified against the live
     # API), so the tiers are three flash variants with a real capability gap.
     model_classifier: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_CLASSIFIER")
-    model_fast: str = Field(default="gemini-3.5-flash-lite", alias="MODEL_FAST")
+    model_fast: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_FAST")
     model_smart: str = Field(default="gemini-3.5-flash-lite", alias="MODEL_SMART")
 
     # Free-tier daily caps are per model, so a backup on a different model id
