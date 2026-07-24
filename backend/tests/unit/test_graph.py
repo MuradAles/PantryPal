@@ -96,6 +96,42 @@ async def test_runaway_tool_loop_is_capped_and_still_answers(
     assert result["messages"][-1].content == "Here is my answer."
 
 
+async def test_the_forced_answer_carries_no_unanswered_tool_call(
+    patch_model, scripted_model, fake_search
+):
+    """The capped path must not hand the provider a tool call nothing answered.
+
+    _route sends the run to finalize precisely because the tools node was
+    skipped, so the last message is a request that will never get a result.
+    _finalize also binds no tools, so passing it on declares a function that was
+    never offered and answers one that was never run.
+
+    Asserted on the message list rather than on a provider error: the scripted
+    model accepts any input, so a behavioural test here would stay green against
+    a request the real API rejects. This assertion is model-independent.
+    """
+    call = [{"name": "search_web", "args": {"query": "x"}}]
+    model = patch_model(
+        scripted_model(*[ai("", call) for _ in range(6)], ai("Here is my answer."))
+    )
+
+    result = await graph.GRAPH.ainvoke(graph.initial_state("loop forever"))
+
+    sent = model.calls[-1]
+    answered = {m.tool_call_id for m in sent if isinstance(m, ToolMessage)}
+    dangling = [
+        c["id"]
+        for m in sent
+        for c in getattr(m, "tool_calls", None) or []
+        if c["id"] not in answered
+    ]
+    assert dangling == [], f"unanswered tool calls sent to a model with no tools: {dangling}"
+    # The results gathered before the cap are still there to answer from; only
+    # the unanswered request at the tail is dropped.
+    assert any(isinstance(m, ToolMessage) for m in sent)
+    assert result["messages"][-1].content == "Here is my answer."
+
+
 async def test_search_failure_does_not_break_the_conversation(
     patch_model, scripted_model, monkeypatch
 ):

@@ -10,12 +10,14 @@ path. ScriptedChatModel covers both gaps and adds failure injection.
 import json
 import re
 from collections.abc import Iterator, Sequence
+from itertools import count
 from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.runnables import RunnableLambda
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -41,6 +43,18 @@ class ScriptedChatModel(BaseChatModel):
             getattr(t, "name", getattr(t, "__name__", str(t))) for t in tools
         ]
         return self
+
+    def with_structured_output(self, schema: Any, **kwargs: Any):
+        """Parse each scripted reply's JSON content into the schema, as a real model does.
+
+        BaseChatModel raises NotImplementedError here, so without this the
+        classifier path cannot be tested at all. Scripted replies carry the JSON
+        as their content, which is close enough to what a provider returns for
+        the composition above it to be exercised for real rather than stubbed.
+        """
+        return self | RunnableLambda(
+            lambda message: schema.model_validate_json(message.text or "{}")
+        )
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:
         """Pop the next scripted reply, raising the injected error if one is set."""
@@ -101,16 +115,24 @@ class ScriptedChatModel(BaseChatModel):
             )
 
 
+_call_counter = count()
+
+
 def ai(content: str = "", tool_calls: list[dict] | None = None) -> AIMessage:
     """Build a scripted assistant reply, optionally carrying tool calls."""
     return AIMessage(
         content=content,
         tool_calls=[
+            # Unique across every message this helper builds, not just within one.
+            # Numbering per message gave every scripted reply in a run the id
+            # "call_0", so any code pairing a call to its result saw them all as
+            # already answered — which is exactly the bug such code exists to
+            # catch, hidden by the fake rather than by the app.
             {
                 "name": call["name"],
                 "args": call.get("args", {}),
-                "id": call.get("id", f"call_{index}"),
+                "id": call.get("id") or f"call_{next(_call_counter)}",
             }
-            for index, call in enumerate(tool_calls or [])
+            for call in (tool_calls or [])
         ],
     )
