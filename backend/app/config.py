@@ -26,9 +26,13 @@ class Settings(BaseSettings):
     # Model ids live in config so a provider rename is an env change, not a code change.
     # Every Pro tier is quota-0 on a free AI Studio key (verified against the live
     # API), so the tiers are three flash variants with a real capability gap.
-    model_classifier: str = Field(default="gemini-flash-lite-latest", alias="MODEL_CLASSIFIER")
-    model_fast: str = Field(default="gemini-2.5-flash", alias="MODEL_FAST")
-    model_smart: str = Field(default="gemini-3.6-flash", alias="MODEL_SMART")
+    model_classifier: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_CLASSIFIER")
+    model_fast: str = Field(default="gemini-3.5-flash-lite", alias="MODEL_FAST")
+    model_smart: str = Field(default="gemini-3.5-flash-lite", alias="MODEL_SMART")
+
+    # Free-tier daily caps are per model, so a backup on a different model id
+    # buys a second allowance once the primary is spent.
+    model_backup: str = Field(default="gemini-3.1-flash-lite", alias="MODEL_BACKUP")
 
     # Ceiling on the agent's tool-calling loop. Guards against runaway cost.
     max_tool_iterations: int = 5
