@@ -108,7 +108,7 @@ export async function saveRecipe(userId, recipe) {
   const response = await fetch(`/api/recipes/${encodeURIComponent(userId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipe }),
+    body: JSON.stringify(recipe),
   })
   if (!response.ok) throw new Error(await errorDetail(response, 'Could not save that recipe.'))
   return response.json()

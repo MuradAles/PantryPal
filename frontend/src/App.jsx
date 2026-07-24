@@ -83,6 +83,9 @@ export default function App() {
 
     const controller = new AbortController()
     abort.current = controller
+    // Whether the done frame arrived. It is the only thing that can rule the
+    // allergen notice out, so the fallback below has to know it was missed.
+    let settled = false
 
     try {
       await streamChat({
@@ -97,12 +100,14 @@ export default function App() {
           ),
         // The three things the model is not trusted to place itself: the notice,
         // the sources, and the shape of the recipe card.
-        onDone: (payload) =>
+        onDone: (payload) => {
+          settled = true
           update(reply.id, {
             allergenNotice: Boolean(payload.allergen_notice),
             sources: payload.sources ?? [],
             recipe: payload.recipe ?? null,
-          }),
+          })
+        },
         onError: (detail) => update(reply.id, { error: detail }),
       })
     } catch (err) {
@@ -118,14 +123,19 @@ export default function App() {
       // all. One click on Stop would otherwise defeat a legal requirement.
       // Falling back to showing it is the same asymmetry the server applies:
       // an unnecessary notice is a line of chrome, a missing one is not.
+      // Only when the frame never came, though — once it has, its boolean is the
+      // answer, and forcing the notice on regardless would mean the app no longer
+      // renders it from the flag at all. See SPEC R18.
       setMessages((current) =>
-        current.map((message) =>
-          message.id === reply.id && message.streaming && message.text
-            ? { ...message, allergenNotice: true, streaming: false }
-            : message.id === reply.id
-              ? { ...message, streaming: false }
-              : message,
-        ),
+        current.map((message) => {
+          if (message.id !== reply.id) return message
+          const unruled = !settled && Boolean(message.text)
+          return {
+            ...message,
+            streaming: false,
+            allergenNotice: message.allergenNotice || unruled,
+          }
+        }),
       )
       setStreaming(false)
       // The turn may have taught the assistant something; show it immediately.

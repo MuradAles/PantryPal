@@ -3,9 +3,21 @@ import AllergenNotice from './AllergenNotice.jsx'
 import Icon from './Icon.jsx'
 import SourceChips from './SourceChips.jsx'
 
-/** The 35 MINS / EASY / SERVES 4 row, with bullets only between the parts we got. */
+/**
+ * The 35 MINS / EASY / SERVES 4 row.
+ *
+ * The backend sends numbers and a lowercase difficulty, and leaves out anything
+ * the model did not actually know. Each part it did send gets a slot; the
+ * bullets only go between the ones that survived, so a recipe with just a time
+ * does not render a row of orphaned separators.
+ */
 function MetaRow({ recipe }) {
-  const parts = [recipe.time, recipe.difficulty, recipe.servings].filter(Boolean)
+  const minutes = recipe.time_mins
+  const parts = [
+    minutes ? `${minutes} ${minutes === 1 ? 'MIN' : 'MINS'}` : null,
+    recipe.difficulty || null,
+    recipe.serves ? `SERVES ${recipe.serves}` : null,
+  ].filter(Boolean)
   if (parts.length === 0) return null
 
   return (
@@ -51,7 +63,9 @@ export default function RecipeCard({ recipe, sources = [], allergenNotice = fals
             <Icon name={saved ? 'bookmark_added' : 'bookmark_add'} filled={saved} />
           </button>
         )}
-        <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-2">
+        {/* Padded past the save button so a long title wraps instead of running
+            underneath it on a phone. */}
+        <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-background mb-2 px-10">
           {recipe.title || 'Recipe'}
         </h2>
         <MetaRow recipe={recipe} />
