@@ -15,7 +15,9 @@ const EMPTY = { cookware: [], likes: [], dislikes: [], avoid: [] }
 /** One group of tags, each individually removable. */
 function Group({ group, values, busy, onRemove }) {
   return (
-    <section className="profile-group">
+    // data-field lets styling target a group by name. Without it the only hook is
+    // nth-of-type, which silently reassigns colours the moment GROUPS is reordered.
+    <section className="profile-group" data-field={group.field}>
       <h3>{group.label}</h3>
       {values.length === 0 ? (
         <p className="profile-empty">{group.empty}</p>
