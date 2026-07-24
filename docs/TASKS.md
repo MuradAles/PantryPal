@@ -11,6 +11,23 @@ Commit at the end of every phase. The README asks for visible progress.
 | Phase | State |
 |---|---|
 | 0 — Repo setup | done |
+| 1 — Skeleton that runs | done, verified live |
+| 2 — Talking to Gemini | done, verified live |
+| 3 — Agent + search tool | done. Tool-calling verified live; **no live reply has yet carried sources** |
+| 4 — Memory | done including the checkpointer. Model saving unprompted verified live |
+| 5 — Legal rules | done, blocked topics verified live |
+| 6 — Robustness | done |
+| 7 — Frontend | done, verified live in a browser |
+| 8 — Profile panel | done, verified live |
+| 9 — Tests | 168 green. Write guard, concurrency and storage all mutation-checked |
+| 10 — Documentation | `TRADEOFFS.md` done. **`README.md` still the assessment brief, not ours** |
+
+168 tests pass in about two seconds and cost no API quota — every model in the suite is scripted locally.
+
+**Landed outside the phase plan:** the R22 fix (`DELETE /api/profile` was wiping the profile but leaving the conversation thread, which is a verbatim transcript keyed by the same user id — the medical write guard was defeatable through it). Both are now deleted together.
+
+---|---|
+| 0 — Repo setup | done |
 | 1 — Skeleton that runs | done, verified |
 | 2 — Talking to Gemini | done, verified |
 | 3 — Agent + search tool | code done, tests green, **not yet verified against the live API** |
@@ -94,7 +111,7 @@ Commit at the end of every phase. The README asks for visible progress.
 - [x] **Write guard**: `save_profile` strips medical terms before SQL, logs the rejection, does not raise
 - [x] Tools `get_user_profile` and `remember_about_user` bound to the agent
 - [x] Profile injected into the system prompt each turn
-- [ ] LangGraph SQLite checkpointer for conversation state, trimmed to the last 10 turns — **not done**, memory is profile-only so far
+- [x] LangGraph SQLite checkpointer for conversation state, trimmed to the last 10 turns
 - [x] `GET`, `PATCH`, `DELETE /api/profile/{user_id}`
 
 **Done when:** say "I only have a hot plate and one pan", restart the containers, ask for dinner — it still knows, and doesn't suggest anything needing an oven.
@@ -111,6 +128,8 @@ Commit at the end of every phase. The README asks for visible progress.
 - [x] Model routing: SIMPLE → fast tier, HARD → smart tier (no Pro on a free key)
 - [x] `needs_allergen_notice(text)`; `allergen_notice` on the response contract
 - [x] Food-adjacent (wine, gear, hosting, restaurants) classifies as OK
+
+**Verified live:** food-safety and off-topic declines return canned text without reaching a model. Allergen notice confirmed on a real 1170-char recipe in the browser, rendered outside the prose.
 
 **Done when:** all six of these behave correctly —
 
@@ -134,7 +153,7 @@ Commit at the end of every phase. The README asks for visible progress.
 - [x] Agent tool loop → hard cap at 5, still returns prose
 - [x] Database down → chat still answers and says it cannot reach its notes, rather than acting amnesiac
 - [x] Concurrent writes to one profile don't lose data — single connection under BEGIN IMMEDIATE, mutation-checked
-- [ ] Prompt injection at the policy layer (needs phase 5)
+- [x] Prompt injection at the policy layer — keyword pass runs before any model, `test_policy.py`
 - [x] Non-English input answers fine. **Known limit:** `keyword_topic` is English-only, so a non-English food-safety question relies on the LLM classifier and loses the deterministic backstop during an outage. Filed for TRADEOFFS.md.
 
 **Done when:** nothing in §8 produces a 500 or a stack trace in the response body.
@@ -187,13 +206,14 @@ Done:
 - [x] Integration: malformed and empty payloads return 4xx
 
 Still to write — the high-stakes ones, landing with phases 4 and 5:
-- [ ] Unit: `save_profile` strips medical terms — "diabetic" never reaches the table
-- [ ] Unit: profile merge deduplicates and preserves existing entries
-- [ ] Unit: classifier routes each topic, including adversarial phrasings
-- [ ] Unit: `needs_allergen_notice` fires on recipes, not on substitution answers
-- [ ] Integration: memory round trip, surviving a restart
-- [ ] Integration: blocked topics never reach the agent
-- [ ] Integration: `DELETE /api/profile` empties it
+- [x] Unit: `save_profile` strips medical terms — `test_profile_guard.py`, mutation-checked (12 red)
+- [x] Unit: profile merge deduplicates and preserves existing entries
+- [x] Unit: classifier routes each topic, including adversarial phrasings — `test_policy.py`
+- [x] Unit: `needs_allergen_notice` — rule widened to always-on for substantive replies, see TRADEOFFS
+- [x] Integration: memory round trip, and conversation history across turns
+- [ ] Integration: memory surviving a full container restart — not run
+- [x] Integration: blocked topics never reach the agent — asserts the model was never called
+- [x] Integration: `DELETE /api/profile` empties the profile **and** the conversation thread
 
 **Done when:** the suite is green and each test has been seen to fail once with the code broken.
 
@@ -201,9 +221,9 @@ Still to write — the high-stakes ones, landing with phases 4 and 5:
 
 ## Phase 10 — Documentation
 
-- [ ] `README.md` — setup, `.env` instructions, `docker compose up`, curl examples
-- [ ] README includes the demo script from `PRD.md` §11 so memory is visible in under a minute
-- [ ] `TRADEOFFS.md` — built vs scoped, cuts and why, next steps, known issues
+- [ ] `README.md` — **root README is still PressW's assessment brief.** Needs replacing with ours, and the brief moved to `docs/`
+- [ ] README demo script, plus the `--force-recreate` trap after any `.env` edit
+- [x] `TRADEOFFS.md` — built vs scoped, trade-offs, known issues, what I'd do next, and a note on verification
 - [ ] `SCOPING.md` reread against what actually shipped; correct anything that drifted
 - [x] Working docs moved to `docs/` rather than deleted — root keeps only the four deliverables
 - [ ] Remove scaffolding: debug prints, dead code
@@ -217,5 +237,5 @@ Still to write — the high-stakes ones, landing with phases 4 and 5:
 
 - [ ] All four deliverables at repo root: `SCOPING.md`, working system, `README.md`, `TRADEOFFS.md`
 - [ ] `.env` never committed — check the full history, not just the last commit
-- [ ] Anything unfinished is written down in `TRADEOFFS.md`, honestly
+- [x] Anything unfinished is written down in `TRADEOFFS.md`, honestly
 - [ ] Any commit past the 3-hour mark is labelled post-window
