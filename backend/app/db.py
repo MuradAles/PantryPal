@@ -1,0 +1,86 @@
+"""SQLite storage and schema bootstrap.
+
+SQLite keeps v1 to a single container with nothing to provision. The access
+layer here is deliberately thin, so moving to Postgres later means rewriting
+this file and nothing else.
+
+SQLite has no array type, so the list columns are stored as JSON text and
+encoded/decoded at this boundary.
+"""
+
+import json
+import logging
+from pathlib import Path
+
+import aiosqlite
+
+from app.config import get_settings
+
+log = logging.getLogger(__name__)
+
+# No medical column exists here, by design. A condition the model tries to save
+# has nowhere to land even if the write guard were bypassed. See PRD.md 5.1.
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS profiles (
+    user_id    TEXT PRIMARY KEY,
+    cookware   TEXT NOT NULL DEFAULT '[]',
+    likes      TEXT NOT NULL DEFAULT '[]',
+    dislikes   TEXT NOT NULL DEFAULT '[]',
+    avoid      TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+def db_path() -> Path:
+    """Return the configured database file path."""
+    return Path(get_settings().database_path)
+
+
+async def init_db() -> None:
+    """Create the database file and schema if absent, tolerating a failure."""
+    try:
+        path = db_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        async with aiosqlite.connect(path) as conn:
+            # WAL lets reads proceed during writes, which matters once the agent
+            # is saving profile facts mid-conversation.
+            await conn.execute("PRAGMA journal_mode=WAL")
+            await conn.executescript(SCHEMA)
+            await conn.commit()
+        log.info("database ready at %s", path)
+    except Exception:
+        log.exception("database unavailable at startup; continuing without memory")
+
+
+def connect() -> aiosqlite.Connection:
+    """Open a short-lived connection; callers use it as an async context manager."""
+    return aiosqlite.connect(db_path())
+
+
+def encode(values: list[str]) -> str:
+    """Serialize a list column for storage."""
+    return json.dumps(values)
+
+
+def decode(raw: str | None) -> list[str]:
+    """Deserialize a list column, returning an empty list on missing or bad data."""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, list) else []
+    except json.JSONDecodeError:
+        log.warning("corrupt list column, treating as empty")
+        return []
+
+
+async def healthy() -> bool:
+    """Return True when a trivial query against the database succeeds."""
+    try:
+        async with connect() as conn:
+            await conn.execute("SELECT 1")
+        return True
+    except Exception:
+        log.warning("database health check failed")
+        return False

@@ -24,9 +24,9 @@ What separates it from a generic chatbot, per the brief:
 | LLM access | LangChain + `langchain-google-genai` | required path, no vendor SDK |
 | Models | Gemini Flash tier / Pro tier | routed by difficulty |
 | Search | Tavily | env var is `TRAVILY_API_KEY` in `.env`; map it in config |
-| Database | Postgres 16 | Docker Compose service |
+| Database | SQLite | file on a Docker volume; no service to provision |
 | Frontend | React + Vite | visual design supplied separately |
-| Packaging | Docker Compose | three services |
+| Packaging | Docker Compose | backend now, frontend added in phase 7 |
 
 ### Dependencies
 
@@ -34,8 +34,8 @@ Backend:
 ```
 fastapi                        uvicorn[standard]
 langgraph                      langchain-core
-langchain-google-genai         langgraph-checkpoint-postgres
-langchain-tavily               psycopg[binary,pool]
+langchain-google-genai         langgraph-checkpoint-sqlite
+langchain-tavily               aiosqlite
 pydantic-settings              sse-starlette
 pytest  pytest-asyncio  httpx  (dev)
 ```
@@ -78,14 +78,16 @@ The model chooses its own tool calls. There is no fixed call order anywhere in t
 
 | column | type | notes |
 |---|---|---|
-| user_id | text PK | client-supplied, localStorage |
-| cookware | text[] | what they own |
-| likes | text[] | cuisines, flavors |
-| dislikes | text[] | won't eat |
-| avoid | text[] | allergen exclusions, stored as ingredient names only |
-| updated_at | timestamptz | |
+| user_id | TEXT PK | client-supplied, localStorage |
+| cookware | TEXT (JSON array) | what they own |
+| likes | TEXT (JSON array) | cuisines, flavors |
+| dislikes | TEXT (JSON array) | won't eat |
+| avoid | TEXT (JSON array) | allergen exclusions, stored as ingredient names only |
+| updated_at | TEXT | ISO timestamp |
 
-**Conversation state** — LangGraph Postgres checkpointer, keyed by thread id. Trim to the last 10 turns before sending to the model.
+**Conversation state** — LangGraph SQLite checkpointer, keyed by thread id. Trim to the last 10 turns before sending to the model.
+
+SQLite has no array type, so the list columns are stored as JSON text and encoded at the `db.py` boundary. The access layer is thin on purpose: moving to Postgres later rewrites that one file.
 
 **No medical column exists.** This is deliberate and structural, not a convention.
 

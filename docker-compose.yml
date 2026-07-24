@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      # Points at the mounted volume so memory survives container restarts.
+      DATABASE_PATH: /data/pantrypal.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - pantrypal-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pantrypal-data:
