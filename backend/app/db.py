@@ -6,6 +6,10 @@ this file and nothing else.
 
 SQLite has no array type, so the list columns are stored as JSON text and
 encoded/decoded at this boundary.
+
+LangGraph's conversation checkpointer shares this same file rather than taking a
+second one. It owns its own tables, and one file means one volume to mount and
+one thing to delete when a user asks for everything to go.
 """
 
 import json
@@ -13,6 +17,7 @@ import logging
 from pathlib import Path
 
 import aiosqlite
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.config import get_settings
 
@@ -56,6 +61,27 @@ async def init_db() -> None:
 def connect() -> aiosqlite.Connection:
     """Open a short-lived connection; callers use it as an async context manager."""
     return aiosqlite.connect(db_path())
+
+
+async def checkpointer() -> AsyncSqliteSaver:
+    """Open the conversation checkpointer over the same database file.
+
+    Unlike connect(), this connection is long-lived: LangGraph holds it for the
+    life of the process and binds it to the running event loop, so it cannot be
+    the short-lived per-call shape the profile store uses.
+
+    Raises if the file is unreachable. The caller decides what an absent
+    checkpointer means, which is the only reason this does not swallow it like
+    the rest of this module.
+    """
+    # Deliberately no mkdir here. init_db creates the directory at startup, and
+    # silently recreating a volume that has gone missing would turn a visible
+    # outage into a chat that quietly forgets everything every restart.
+    conn = await aiosqlite.connect(db_path())
+    await conn.execute("PRAGMA journal_mode=WAL")
+    saver = AsyncSqliteSaver(conn)
+    await saver.setup()
+    return saver
 
 
 def encode(values: list[str]) -> str:
