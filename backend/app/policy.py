@@ -128,7 +128,11 @@ async def classify(message: str) -> Classification:
         return Classification(topic=blocked, difficulty="SIMPLE")
 
     try:
-        model = llm.get_model("classifier").with_structured_output(Classification)
+        # Backed by the backup model. The keyword layer above still holds if both
+        # are down, but a classifier that is merely out of quota would otherwise
+        # fail open on every message for the rest of the day, and failing open is
+        # meant to be the rare case rather than the standing state.
+        model = llm.structured_model("classifier", Classification)
         return await model.ainvoke(CLASSIFIER_PROMPT.format(message=message))
     except Exception:
         # The keyword layer has already cleared the blunt cases, so failing open
@@ -144,20 +148,24 @@ def contains_medical(value: str) -> bool:
 
 
 def needs_allergen_notice(text: str) -> bool:
-    """Return True if a reply needs the allergen notice attached.
+    """Return True if a reply named a specific dish or ingredient.
 
-    Every substantive answer from a cooking assistant gets one. The heuristic
-    below was tried first and rejected: it missed "Smash burgers. Thin patties,
-    screaming hot pan" — an unambiguous recipe suggestion with no measurements,
-    no ingredient list and no matching verb. Anything that fails on a case that
-    plain is not fit to gate a legal requirement.
+    Counsel's wording is "any response that suggests a specific recipe or
+    ingredient", which is narrower than every reply. This was briefly widened to
+    always-on because an earlier heuristic missed "Smash burgers. Thin patties,
+    screaming hot pan" and a rule that fails on a case that plain cannot gate a
+    legal requirement.
 
-    The risk here is asymmetric. A notice shown when it was not strictly needed
-    is a line of UI chrome; a notice missed once is what counsel wrote the email
-    about. So this errs all the way toward showing it, and only an empty reply
-    is exempt. Declines never reach this function.
+    Structured recipes fixed that. The caller now ORs this against the presence
+    of a recipe object, which is a reliable signal rather than a guess, so this
+    function only has to catch ingredients named in loose prose. That keeps the
+    notice off pure conversation, off technique answers that name no food, and
+    off "what pan should I buy", where it was only ever noise.
+
+    Still deliberately broad within its scope. A notice shown unnecessarily is a
+    line of chrome; one missed is what counsel wrote the email about.
     """
-    return bool(text.strip())
+    return bool(_INGREDIENT_RE.search(text))
 
 
 def looks_like_a_recipe(text: str) -> bool:
